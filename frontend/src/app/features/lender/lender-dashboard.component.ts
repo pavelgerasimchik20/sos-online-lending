@@ -38,7 +38,7 @@ import { EarningsChartComponent, EarningsPoint } from '../../shared/components/e
     <div class="soz-page">
       <div class="soz-header-row">
         <div>
-          <h1>Кабинет займодавца</h1>
+          <h1>Кабинет инвестора</h1>
           <p class="soz-subtle">Инвестируйте в проверенные заявки и следите за доходом</p>
         </div>
         <a mat-raised-button color="primary" class="soz-cta-btn" routerLink="/lender/marketplace">

@@ -69,6 +69,7 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 16px;
+  margin-top: 2rem;
 }
 
 .soz-spacer {
@@ -225,6 +226,7 @@ body {
 .soz-money-card {
   position: relative;
   overflow: hidden;
+  margin: 6px;
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease;

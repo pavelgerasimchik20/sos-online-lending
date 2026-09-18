@@ -104,11 +104,11 @@ export class MarketplaceService {
     const approved = Number(application.approvedAmountByn ?? 0);
     const remaining = round2(approved - Number(application.fundedAmountByn ?? 0));
 
-    // Заём финансируется строго одним займодавцем целиком (не пулом из нескольких
-    // инвесторов): заявка — от одного заёмщика и для одного займодавца.
+    // Заём финансируется строго одним инвестором целиком (не пулом из нескольких
+    // инвесторов): заявка — от одного заёмщика и для одного инвестора.
     if (Math.abs(amountByn - remaining) > 0.01) {
       throw new BadRequestException(
-        `Заявку можно профинансировать только полностью, одним займодавцем. Требуемая сумма: ${remaining} BYN`,
+        `Заявку можно профинансировать только полностью, одним инвестором. Требуемая сумма: ${remaining} BYN`,
       );
     }
 

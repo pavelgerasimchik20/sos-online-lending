@@ -11,7 +11,7 @@ export class ConfirmRegistrationDto {
   @MinLength(8, { message: 'Пароль должен быть не короче 8 символов' })
   password: string;
 
-  /** Необязательно — по умолчанию заёмщик; роль займодавца можно добавить позже в кабинете. */
+  /** Необязательно — по умолчанию заёмщик; роль инвестора можно добавить позже в кабинете. */
   @IsOptional()
   @IsIn([UserRole.BORROWER, UserRole.LENDER])
   role?: UserRole.BORROWER | UserRole.LENDER;

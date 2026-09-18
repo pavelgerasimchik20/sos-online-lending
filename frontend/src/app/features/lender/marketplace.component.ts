@@ -19,9 +19,9 @@ import { extractErrorMessage } from '../../core/utils/error-message';
       <div class="soz-header-row">
         <div>
           <h1>Маркетплейс заявок</h1>
-          <p class="soz-subtle">Каждая заявка финансируется одним займодавцем целиком — вы получаете 100% дохода по займу</p>
+          <p class="soz-subtle">Каждая заявка финансируется одним инвестором целиком — вы получаете 100% дохода по займу</p>
         </div>
-        <a mat-button routerLink="/lender">← Кабинет займодавца</a>
+        <a mat-button routerLink="/lender">← Кабинет инвестора</a>
       </div>
       <p class="soz-hint">
         <mat-icon inline>shield</mat-icon>
@@ -48,7 +48,7 @@ import { extractErrorMessage } from '../../core/utils/error-message';
               <div class="soz-listing-stats">
                 <div><mat-icon>schedule</mat-icon><span>{{ listing.approvedTermMonths }} мес.</span></div>
                 <div><mat-icon>percent</mat-icon><span>{{ listing.annualRatePercent }}% годовых</span></div>
-                <div><mat-icon>person</mat-icon><span>1 займодавец</span></div>
+                <div><mat-icon>person</mat-icon><span>1 инвестор</span></div>
                 @if (listing.fundingDeadline) {
                   <div><mat-icon>event</mat-icon><span>до {{ listing.fundingDeadline | date: 'dd.MM.yyyy HH:mm' }}</span></div>
                 }

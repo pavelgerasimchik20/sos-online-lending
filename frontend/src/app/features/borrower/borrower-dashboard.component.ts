@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -46,6 +46,10 @@ import { VerificationBannerComponent } from '../../shared/components/verificatio
             <a mat-raised-button color="primary" class="soz-cta-btn" routerLink="/borrower/apply">
               <mat-icon>add_circle</mat-icon> Подать заявку на заём
             </a>
+          } @else if (activeApplication(); as activeApp) {
+            <a mat-stroked-button color="primary" class="soz-cta-btn" [routerLink]="['/borrower/applications', activeApp.id]">
+              <mat-icon>hourglass_top</mat-icon> У вас уже есть заявка в обработке — посмотреть
+            </a>
           }
         }
       </div>
@@ -72,7 +76,7 @@ import { VerificationBannerComponent } from '../../shared/components/verificatio
           <mat-icon>trending_up</mat-icon>
           <div class="soz-become-lender-text">
             <strong>Есть свободные деньги? Зарабатывайте на них.</strong>
-            <span>Станьте займодавцем в один клик — используем ту же анкету, без повторного KYC.</span>
+            <span>Станьте инвестором в один клик — используем ту же анкету, без повторного KYC.</span>
           </div>
           <button mat-raised-button color="accent" (click)="becomeLender()" [disabled]="becomingLender()">
             Стать инвестором
@@ -233,7 +237,13 @@ export class BorrowerDashboardComponent implements OnInit {
   readonly profile = signal<Profile | null>(null);
   readonly becomingLender = signal(false);
 
-  readonly hasActiveApplication = signal(false);
+  readonly activeApplication = computed(
+    () =>
+      this.applications().find(
+        (a) => a.status === LoanApplicationStatus.SUBMITTED || a.status === LoanApplicationStatus.PUBLISHED_FOR_FUNDING,
+      ) ?? null,
+  );
+  readonly hasActiveApplication = computed(() => this.activeApplication() !== null);
 
   constructor(
     private readonly applicationsService: LoanApplicationsService,
@@ -246,11 +256,6 @@ export class BorrowerDashboardComponent implements OnInit {
   ngOnInit(): void {
     this.applicationsService.listMine().subscribe((apps) => {
       this.applications.set(apps);
-      this.hasActiveApplication.set(
-        apps.some(
-          (a) => a.status === LoanApplicationStatus.SUBMITTED || a.status === LoanApplicationStatus.PUBLISHED_FOR_FUNDING,
-        ),
-      );
     });
     this.loansService.listMine().subscribe((loans) => this.loans.set(loans));
     this.profilesService.getMine().subscribe((p) => this.profile.set(p));

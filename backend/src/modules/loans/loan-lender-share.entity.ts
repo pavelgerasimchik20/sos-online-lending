@@ -14,7 +14,7 @@ export class LoanLenderShare extends BaseEntity {
   @Column('decimal', { precision: 12, scale: 2 })
   principalShareByn: number;
 
-  /** Доля займодавца в сумме основного долга (0..1), используется для пропорционального распределения платежей. */
+  /** Доля инвестора в сумме основного долга (0..1), используется для пропорционального распределения платежей. */
   @Column('decimal', { precision: 8, scale: 6 })
   shareRatio: number;
 

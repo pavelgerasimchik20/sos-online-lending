@@ -48,7 +48,7 @@ import { extractErrorMessage } from '../../core/utils/error-message';
       @if (dashboard(); as d) {
         <div class="soz-card-grid soz-metrics">
           <mat-card class="soz-money-card"><mat-card-content><mat-icon class="soz-tile-icon">group</mat-icon><span class="soz-metric-label">Пользователей</span><div class="soz-metric-value">{{ d.usersTotal }}</div></mat-card-content></mat-card>
-          <mat-card class="soz-money-card"><mat-card-content><mat-icon class="soz-tile-icon">balance</mat-icon><span class="soz-metric-label">Заёмщиков / займодавцев</span><div class="soz-metric-value">{{ d.usersByRole.borrowers }} / {{ d.usersByRole.lenders }}</div></mat-card-content></mat-card>
+          <mat-card class="soz-money-card"><mat-card-content><mat-icon class="soz-tile-icon">balance</mat-icon><span class="soz-metric-label">Заёмщиков / инвесторов</span><div class="soz-metric-value">{{ d.usersByRole.borrowers }} / {{ d.usersByRole.lenders }}</div></mat-card-content></mat-card>
           <mat-card class="soz-money-card"><mat-card-content><mat-icon class="soz-tile-icon">gavel</mat-icon><span class="soz-metric-label">Открытых дел взыскания</span><div class="soz-metric-value">{{ d.openCollectionCases }}</div></mat-card-content></mat-card>
           <mat-card class="soz-money-card"><mat-card-content><mat-icon class="soz-tile-icon">account_balance</mat-icon><span class="soz-metric-label">Портфель (остаток долга)</span><div class="soz-metric-value">{{ d.outstandingPortfolioByn }} BYN</div></mat-card-content></mat-card>
         </div>
@@ -96,7 +96,7 @@ import { extractErrorMessage } from '../../core/utils/error-message';
                   <mat-label>Роли</mat-label>
                   <mat-select formControlName="roles" multiple>
                     <mat-option [value]="Role.BORROWER">Заёмщик</mat-option>
-                    <mat-option [value]="Role.LENDER">Займодавец</mat-option>
+                    <mat-option [value]="Role.LENDER">Инвестор</mat-option>
                     <mat-option [value]="Role.ADMIN">Администратор</mat-option>
                   </mat-select>
                 </mat-form-field>
@@ -126,7 +126,7 @@ import { extractErrorMessage } from '../../core/utils/error-message';
                     (selectionChange)="updateRoles(u.id, $event.value)"
                   >
                     <mat-option [value]="Role.BORROWER">Заёмщик</mat-option>
-                    <mat-option [value]="Role.LENDER">Займодавец</mat-option>
+                    <mat-option [value]="Role.LENDER">Инвестор</mat-option>
                     <mat-option [value]="Role.ADMIN">Администратор</mat-option>
                   </mat-select>
                 </td>

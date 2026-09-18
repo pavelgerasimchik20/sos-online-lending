@@ -36,9 +36,9 @@ async function main() {
   const code = (await page.textContent('.soz-dev-hint')).match(/(\d{6})/)?.[1];
   await page.fill('input[formcontrolname="code"]', code);
   await page.click('button:has-text("Далее")');
-  await page.waitForSelector('mat-radio-button:has-text("Займодавец")');
+  await page.waitForSelector('mat-radio-button:has-text("Инвестор")');
   await page.fill('input[formcontrolname="password"]', 'Password123');
-  await page.click('mat-radio-button:has-text("Займодавец")');
+  await page.click('mat-radio-button:has-text("Инвестор")');
   await page.click('button:has-text("Зарегистрироваться")');
   await page.waitForURL('**/lender/kyc', { timeout: 15000 });
 

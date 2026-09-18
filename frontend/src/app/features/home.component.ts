@@ -27,7 +27,7 @@ import { UserRole } from '../core/models/models';
           <span class="soz-hero-badge"><mat-icon inline>bolt</mat-icon> Заём онлайн за минуты</span>
           <h1>SOS — сервис онлайн-заимствования</h1>
           <p>
-            Соединяем займодавцев и заёмщиков напрямую: каждая заявка финансируется одним займодавцем
+            Соединяем инвесторов и заёмщиков напрямую: каждая заявка финансируется одним инвестором
             целиком, деньги приходят через ЕРИП, личность подтверждается через МСИ. Прозрачно, быстро,
             по модели, приближённой к регулированию СОЗ в Республике Беларусь.
           </p>
@@ -48,7 +48,7 @@ import { UserRole } from '../core/models/models';
               }
               @if (auth.hasRole(UserRole.LENDER)) {
                 <a mat-raised-button color="accent" class="soz-cta-primary" routerLink="/lender">
-                  <mat-icon>trending_up</mat-icon> Кабинет займодавца
+                  <mat-icon>trending_up</mat-icon> Кабинет инвестора
                 </a>
               }
               @if (auth.hasRole(UserRole.ADMIN)) {
@@ -74,7 +74,7 @@ import { UserRole } from '../core/models/models';
           <div class="soz-stat">
             <mat-icon>groups</mat-icon>
             <div class="soz-stat-value">{{ animated().activeLenders }}</div>
-            <div class="soz-stat-label">активных займодавцев</div>
+            <div class="soz-stat-label">активных инвесторов</div>
           </div>
           <div class="soz-stat">
             <mat-icon>check_circle</mat-icon>
@@ -111,10 +111,10 @@ import { UserRole } from '../core/models/models';
             <mat-card-content>
               <div class="soz-feature-head">
                 <div class="soz-feature-icon"><mat-icon>handshake</mat-icon></div>
-                <h3>Один заём — один займодавец</h3>
+                <h3>Один заём — один инвестор</h3>
               </div>
-              Каждая одобренная заявка финансируется полностью одним займодавцем — без дробления
-              между инвесторами. Деньги выдаются заёмщику через ЕРИП (мок) мгновенно.
+              Каждая одобренная заявка финансируется полностью одним инвестором — без дробления
+              между несколькими инвесторами. Деньги выдаются заёмщику через ЕРИП (мок) мгновенно.
             </mat-card-content>
           </mat-card>
           <mat-card class="soz-feature-card">

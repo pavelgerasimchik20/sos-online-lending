@@ -37,7 +37,7 @@ import { extractErrorMessage } from '../../core/utils/error-message';
         <div class="soz-auth-icon"><mat-icon>bolt</mat-icon></div>
         <mat-card-header>
           <mat-card-title>Быстрая регистрация</mat-card-title>
-          <mat-card-subtitle>Один номер телефона — и вы в деле. Роль займодавца можно включить позже одной кнопкой.</mat-card-subtitle>
+          <mat-card-subtitle>Один номер телефона — и вы в деле. Роль инвестора можно включить позже одной кнопкой.</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           <form [formGroup]="phoneForm" (ngSubmit)="requestOtp()" class="soz-form">
