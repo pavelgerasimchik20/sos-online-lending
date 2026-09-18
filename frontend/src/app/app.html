@@ -1,0 +1,100 @@
+<mat-toolbar color="primary" class="soz-toolbar">
+  <a routerLink="/" class="soz-brand">
+    <span class="soz-brand-mark">
+      <svg viewBox="0 0 100 100" class="soz-brand-icon" aria-hidden="true">
+        <circle cx="50" cy="50" r="40" fill="#0b3d2e" />
+        <circle cx="50" cy="50" r="36" fill="none" stroke="#16a34a" stroke-width="20" stroke-dasharray="56.55 56.55" stroke-dashoffset="0" />
+        <circle cx="50" cy="50" r="36" fill="none" stroke="#ffffff" stroke-width="20" stroke-dasharray="56.55 56.55" stroke-dashoffset="56.55" />
+        <g fill="#0b3d2e">
+          <circle cx="50" cy="14" r="4.2" />
+          <circle cx="50" cy="86" r="4.2" />
+          <circle cx="14" cy="50" r="4.2" />
+          <circle cx="86" cy="50" r="4.2" />
+        </g>
+        <circle cx="50" cy="50" r="18" fill="#f5fbf7" />
+        <text x="50" y="59.5" font-family="Arial, Helvetica, sans-serif" font-size="27" font-weight="800" fill="#065f46" text-anchor="middle">$</text>
+      </svg>
+    </span>
+    SOS
+  </a>
+  <span class="soz-subtitle">Сервис онлайн-заимствования</span>
+  <span class="soz-spacer"></span>
+
+  <nav class="soz-desktop-nav">
+    @if (auth.isLoggedIn()) {
+      @if (auth.hasRole(UserRole.BORROWER)) {
+        <a mat-button routerLink="/borrower" routerLinkActive="soz-nav-active">Кабинет заёмщика</a>
+      }
+      @if (auth.hasRole(UserRole.LENDER)) {
+        <a mat-button routerLink="/lender" routerLinkActive="soz-nav-active">Кабинет займодавца</a>
+      }
+      @if (auth.hasRole(UserRole.ADMIN)) {
+        <a mat-button routerLink="/admin" routerLinkActive="soz-nav-active">Админ</a>
+      }
+      <button mat-icon-button [matMenuTriggerFor]="userMenu" aria-label="Меню пользователя">
+        <mat-icon>account_circle</mat-icon>
+      </button>
+    } @else {
+      <a mat-button routerLink="/login" routerLinkActive="soz-nav-active">Вход</a>
+      <a mat-raised-button color="accent" routerLink="/register" routerLinkActive="soz-nav-active-accent">Регистрация</a>
+    }
+  </nav>
+
+  <button
+    mat-icon-button
+    class="soz-mobile-toggle"
+    [matMenuTriggerFor]="mobileMenu"
+    aria-label="Открыть меню"
+  >
+    <mat-icon>menu</mat-icon>
+  </button>
+
+  <mat-menu #userMenu="matMenu">
+    <div class="soz-menu-phone">{{ auth.displayName() }}</div>
+    <button mat-menu-item (click)="logout()">
+      <mat-icon>logout</mat-icon>
+      <span>Выйти</span>
+    </button>
+  </mat-menu>
+
+  <mat-menu #mobileMenu="matMenu" class="soz-mobile-menu">
+    @if (auth.isLoggedIn()) {
+      <div class="soz-menu-phone">{{ auth.displayName() }}</div>
+      @if (auth.hasRole(UserRole.BORROWER)) {
+        <a mat-menu-item routerLink="/borrower">
+          <mat-icon>account_balance_wallet</mat-icon>
+          <span>Кабинет заёмщика</span>
+        </a>
+      }
+      @if (auth.hasRole(UserRole.LENDER)) {
+        <a mat-menu-item routerLink="/lender">
+          <mat-icon>trending_up</mat-icon>
+          <span>Кабинет займодавца</span>
+        </a>
+      }
+      @if (auth.hasRole(UserRole.ADMIN)) {
+        <a mat-menu-item routerLink="/admin">
+          <mat-icon>admin_panel_settings</mat-icon>
+          <span>Админ</span>
+        </a>
+      }
+      <button mat-menu-item (click)="logout()">
+        <mat-icon>logout</mat-icon>
+        <span>Выйти</span>
+      </button>
+    } @else {
+      <a mat-menu-item routerLink="/login">
+        <mat-icon>login</mat-icon>
+        <span>Вход</span>
+      </a>
+      <a mat-menu-item routerLink="/register">
+        <mat-icon>person_add</mat-icon>
+        <span>Регистрация</span>
+      </a>
+    }
+  </mat-menu>
+</mat-toolbar>
+
+<main class="soz-main">
+  <router-outlet />
+</main>

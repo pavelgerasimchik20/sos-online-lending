@@ -1,0 +1,19 @@
+{
+  "name": "soz-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "СОЗ — Сервис онлайн-заимствования. Демонстрационный стенд: docker compose (PostgreSQL) + NestJS backend + Angular frontend.",
+  "scripts": {
+    "postinstall": "npm run install:workspaces",
+    "install:workspaces": "npm install --prefix backend && npm install --prefix frontend",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "wait:db": "node scripts/wait-for-db.mjs",
+    "dev:backend": "npm run start:dev --prefix backend",
+    "dev:frontend": "npm start --prefix frontend",
+    "start:all": "npm run docker:up && npm run wait:db && concurrently -n backend,frontend -c green,cyan \"npm:dev:backend\" \"npm:dev:frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

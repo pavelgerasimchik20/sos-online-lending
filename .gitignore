@@ -1,0 +1,14 @@
+# Корневые зависимости оркестрации (concurrently и т.п.)
+/node_modules/
+
+# ОС/редакторы
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Локальные логи
+*.log

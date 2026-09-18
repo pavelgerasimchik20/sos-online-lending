@@ -1,0 +1,321 @@
+@use '@angular/material' as mat;
+
+html {
+  @include mat.theme(
+    (
+      color: (
+        theme-type: light,
+        primary: mat.$green-palette,
+        tertiary: mat.$orange-palette,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+  height: 100%;
+}
+
+:root {
+  --soz-money-green: #0e9f5f;
+  --soz-money-green-dark: #065f46;
+  --soz-money-gold: #f59e0b;
+  --soz-money-gold-deep: #b45309;
+  --soz-money-gradient: linear-gradient(135deg, #065f46 0%, #0e9f5f 45%, #f59e0b 130%);
+  --soz-money-gradient-bold: linear-gradient(120deg, #065f46 0%, #0e9f5f 30%, #eab308 75%, #f59e0b 100%);
+  --soz-hero-gradient: radial-gradient(circle at 12% 15%, rgba(14, 159, 95, 0.32), transparent 52%),
+    radial-gradient(circle at 88% 0%, rgba(245, 158, 11, 0.28), transparent 48%),
+    radial-gradient(circle at 50% 105%, rgba(6, 95, 70, 0.26), transparent 58%);
+  --soz-page-wash: radial-gradient(circle at 6% 0%, rgba(14, 159, 95, 0.07), transparent 40%),
+    radial-gradient(circle at 100% 30%, rgba(245, 158, 11, 0.06), transparent 42%),
+    radial-gradient(circle at 20% 100%, rgba(6, 95, 70, 0.05), transparent 45%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --soz-money-green: #34d399;
+    --soz-money-green-dark: #10b981;
+    --soz-money-gold: #fbbf24;
+    --soz-money-gold-deep: #fbbf24;
+  }
+}
+
+:root[data-theme='dark'] {
+  --soz-money-green: #34d399;
+  --soz-money-green-dark: #10b981;
+  --soz-money-gold: #fbbf24;
+  --soz-money-gold-deep: #fbbf24;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
+  background: var(--soz-page-wash), var(--mat-sys-surface-container-low);
+  background-attachment: fixed;
+  color: var(--mat-sys-on-surface);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.soz-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.soz-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.soz-spacer {
+  flex: 1 1 auto;
+}
+
+.soz-muted {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+/* --- Статус-плашки --- */
+
+.soz-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.soz-status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.soz-status--ok {
+  background: #aeeecb;
+  color: #0a5c34;
+}
+
+.soz-status--warn {
+  background: #fcd899;
+  color: #7a4a00;
+}
+
+.soz-status--danger {
+  background: #f7b8b8;
+  color: #7f1414;
+}
+
+.soz-status--muted {
+  background: #dfe1e8;
+  color: #3d4250;
+}
+
+/* --- Экран авторизации: фон-фото + центрированная карточка --- */
+
+.soz-auth-screen {
+  position: relative;
+  min-height: calc(100vh - 64px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.soz-auth-bg-image {
+  position: absolute;
+  inset: 0;
+  background-image: url('/images/login-hero.jpg');
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: #0b3d2e;
+  animation: sozBgPan 22s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+/* Смещаем карточку формы так, чтобы её горизонтальный центр совпадал с правым
+   краем фонового изображения (background-size: contain, ширина = высота * 7/12). */
+.soz-auth-card {
+  margin-left: min(calc((100vh - 64px) * 0.5833), 38%);
+}
+
+.soz-auth-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(120deg, rgba(6, 95, 70, 0.92) 0%, rgba(14, 159, 95, 0.8) 30%, rgba(6, 30, 24, 0.4) 58%, rgba(6, 30, 24, 0.3) 100%),
+    linear-gradient(to top, rgba(6, 30, 24, 0.55) 0%, rgba(6, 30, 24, 0) 38%);
+}
+
+@keyframes sozBgPan {
+  from {
+    transform: scale(1.06) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.14) translate3d(-1.5%, -1%, 0);
+  }
+}
+
+/* --- Плавающие бейджи валют на фоне авторизации --- */
+
+.soz-currency-badge {
+  position: absolute;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 18px;
+  color: white;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(3px);
+  box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.35);
+}
+
+.soz-currency-usd {
+  top: 14%;
+  left: 8%;
+  animation: sozFloat 8s ease-in-out infinite;
+}
+
+.soz-currency-eur {
+  top: 68%;
+  left: 12%;
+  font-size: 17px;
+  animation: sozFloatSlow 10s ease-in-out infinite;
+}
+
+.soz-currency-byn {
+  top: 22%;
+  right: 9%;
+  font-size: 15px;
+  width: 48px;
+  animation: sozFloatSlow 9s ease-in-out infinite;
+}
+
+@media (max-width: 640px) {
+  .soz-auth-card {
+    margin-left: 0;
+  }
+  .soz-currency-badge {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+}
+
+/* --- Денежная тема: карточки, стекло, свечение --- */
+
+.soz-money-card {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.soz-money-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--soz-money-gradient-bold);
+  opacity: 0.9;
+}
+
+.soz-money-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px -12px rgba(6, 95, 70, 0.4);
+}
+
+.soz-glass-card {
+  backdrop-filter: blur(6px);
+  border: 1px solid color-mix(in srgb, var(--soz-money-green) 18%, transparent);
+}
+
+.soz-reveal {
+  animation: sozRiseIn 0.4s ease both;
+}
+
+/* --- Анимации --- */
+
+@keyframes sozRiseIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sozFloat {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(4deg);
+  }
+}
+
+@keyframes sozFloatSlow {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(18px) rotate(-6deg);
+  }
+}
+
+@keyframes sozShimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes sozPulseRing {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--soz-money-green) 45%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 12px color-mix(in srgb, var(--soz-money-green) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--soz-money-green) 0%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

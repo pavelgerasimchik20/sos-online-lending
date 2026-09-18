@@ -1,0 +1,118 @@
+.soz-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  gap: 4px;
+  background: linear-gradient(100deg, #065f46 0%, #0f9b6e 42%, #16a34a 68%, #ca8a04 130%) !important;
+  color: white !important;
+  box-shadow: 0 2px 16px -4px rgba(6, 95, 70, 0.5);
+}
+
+.soz-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: 0.03em;
+  color: inherit;
+  text-decoration: none;
+  margin-right: 8px;
+}
+
+.soz-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+}
+
+.soz-brand-icon {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 50%;
+  animation: sozBrandGlow 3.5s ease-in-out infinite;
+}
+
+@keyframes sozBrandGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.28),
+      0 4px 10px -2px rgba(0, 0, 0, 0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 0 4px rgba(255, 224, 130, 0.35),
+      0 4px 14px -1px rgba(0, 0, 0, 0.4);
+  }
+}
+
+.soz-subtitle {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  display: none;
+}
+
+@media (min-width: 720px) {
+  .soz-subtitle {
+    display: inline;
+  }
+}
+
+.soz-nav-active {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: -2px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.soz-nav-active-accent {
+  outline: 2px solid white;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.25);
+}
+
+.soz-menu-phone {
+  padding: 8px 16px;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.soz-desktop-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.soz-mobile-toggle {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .soz-desktop-nav {
+    display: none;
+  }
+  .soz-mobile-toggle {
+    display: inline-flex;
+  }
+  .soz-brand {
+    font-size: 18px;
+    margin-right: 4px;
+  }
+  .soz-brand-mark {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+.soz-main {
+  min-height: calc(100vh - 64px);
+}
