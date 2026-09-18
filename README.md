@@ -31,10 +31,27 @@ package.json          Корневая оркестрация: одна кома
 
 ## Быстрый старт (одна команда)
 
-Нужны только [Node.js 20+](https://nodejs.org/) и запущенный [Docker
-Desktop](https://www.docker.com/products/docker-desktop/) — больше ничего
-устанавливать/настраивать не нужно, `.env` не требуется (у всех переменных
-окружения есть рабочие значения по умолчанию, см. `backend/src/config/configuration.ts`).
+### Вариант A — совсем с нуля (Node.js/Docker ещё не установлены)
+
+Скрипт `bootstrap` сам проверит, есть ли на машине Node.js и Docker, при
+отсутствии попробует поставить их (через `winget` на Windows, `brew`/`apt`/
+`dnf`/`get.docker.com` на macOS/Linux), а затем запустит проект.
+
+```bash
+git clone <адрес-репозитория> soz
+cd soz
+```
+
+- **Windows** — дважды кликнуть `bootstrap.bat` (или в PowerShell: `.\bootstrap.ps1`).
+- **macOS / Linux** — `./bootstrap.sh`.
+
+> ⚠️ Docker Desktop (Windows/macOS) после установки требует один ручной
+> первый запуск — принять лицензию и, на Windows, включить WSL2 (иногда с
+> перезагрузкой). Это ограничение самого Docker Desktop, автоматизировать
+> его нельзя. Если скрипт не дождался запуска Docker — сделайте это вручную
+> один раз и запустите скрипт ещё раз, дальше всё пойдёт само.
+
+### Вариант B — Node.js и Docker уже установлены
 
 ```bash
 git clone <адрес-репозитория> soz
@@ -42,6 +59,9 @@ cd soz
 npm install        # поставит зависимости корня + backend + frontend
 npm run start:all  # поднимет Postgres в Docker, затем backend и frontend
 ```
+
+`.env` не требуется — у всех переменных окружения есть рабочие значения по
+умолчанию (см. `backend/src/config/configuration.ts`).
 
 - Frontend: http://localhost:4200
 - Backend API: http://localhost:3000 (Swagger: http://localhost:3000/api/docs)
