@@ -92,7 +92,7 @@ import { extractErrorMessage } from '../../core/utils/error-message';
             </div>
           </div>
 
-          <h2 class="soz-schedule-title">Приложение № 1. График платежей</h2>
+          <h2>Приложение № 1. График платежей</h2>
           <table class="soz-contract-schedule">
             <thead>
               <tr>
@@ -169,9 +169,6 @@ import { extractErrorMessage } from '../../core/utils/error-message';
       .soz-sign-line {
         margin-top: 32px;
       }
-      .soz-schedule-title {
-        page-break-before: always;
-      }
       .soz-contract-schedule {
         width: 100%;
         border-collapse: collapse;
@@ -201,11 +198,58 @@ import { extractErrorMessage } from '../../core/utils/error-message';
       .soz-error {
         color: #b3261e;
       }
+
+      /* Печать/PDF: строго один лист A4, книжная ориентация. */
+      @page {
+        size: A4 portrait;
+        margin: 10mm 12mm;
+      }
       @media print {
         .soz-no-print {
           display: none !important;
         }
+        .soz-page {
+          padding: 0;
+          max-width: none;
+        }
+        .soz-contract {
+          max-width: none;
+          font-size: 9px;
+          line-height: 1.32;
+        }
+        .soz-contract h1 {
+          font-size: 15px;
+          margin: 0 0 2px;
+        }
+        .soz-place-date {
+          margin-bottom: 8px;
+        }
+        .soz-contract p {
+          margin: 3px 0;
+        }
+        .soz-contract h2 {
+          font-size: 10.5px;
+          margin: 8px 0 4px;
+        }
+        .soz-signatures {
+          gap: 16px;
+          margin-top: 6px;
+        }
+        .soz-sign-line {
+          margin-top: 16px;
+        }
+        .soz-contract-schedule {
+          font-size: 8.5px;
+          margin-top: 4px;
+        }
+        .soz-contract-schedule th,
+        .soz-contract-schedule td {
+          padding: 2px 5px;
+        }
         .soz-disclaimer {
+          margin-top: 10px;
+          padding: 6px 8px;
+          font-size: 7.5px;
           background: none;
           border: 1px solid #999;
         }

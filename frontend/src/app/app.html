@@ -53,7 +53,13 @@
   </button>
 
   <mat-menu #userMenu="matMenu">
-    <div class="soz-menu-phone">{{ auth.displayName() }}</div>
+    <div class="soz-menu-user">
+      @if (hasProfileName()) {
+        <div class="soz-menu-name">{{ displayFullName() }}</div>
+      }
+      <div class="soz-menu-role">{{ displayRoles() }}</div>
+      <div class="soz-menu-phone">{{ auth.displayName() }}</div>
+    </div>
     <button mat-menu-item (click)="logout()">
       <mat-icon>logout</mat-icon>
       <span>Выйти</span>
@@ -66,7 +72,13 @@
       <span>Маркетплейс</span>
     </a>
     @if (auth.isLoggedIn()) {
-      <div class="soz-menu-phone">{{ auth.displayName() }}</div>
+      <div class="soz-menu-user">
+        @if (hasProfileName()) {
+          <div class="soz-menu-name">{{ displayFullName() }}</div>
+        }
+        <div class="soz-menu-role">{{ displayRoles() }}</div>
+        <div class="soz-menu-phone">{{ auth.displayName() }}</div>
+      </div>
       @if (auth.hasRole(UserRole.BORROWER)) {
         <a mat-menu-item routerLink="/borrower">
           <mat-icon>account_balance_wallet</mat-icon>
