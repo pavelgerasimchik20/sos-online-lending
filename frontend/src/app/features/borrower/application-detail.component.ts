@@ -10,12 +10,22 @@ import { LoanApplicationsService } from '../../core/services/loan-applications.s
 import { MarketplaceService } from '../../core/services/marketplace.service';
 import { LoanApplication, LoanApplicationStatus } from '../../core/models/models';
 import { StatusBadgeComponent } from '../../shared/components/status-badge.component';
+import { OtpConfirmComponent } from '../../shared/components/otp-confirm.component';
 import { extractErrorMessage } from '../../core/utils/error-message';
 
 @Component({
   selector: 'soz-application-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, MatCardModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, StatusBadgeComponent],
+  imports: [
+    CommonModule,
+    RouterLink,
+    MatCardModule,
+    MatButtonModule,
+    MatIconModule,
+    MatProgressSpinnerModule,
+    StatusBadgeComponent,
+    OtpConfirmComponent,
+  ],
   template: `
     @if (application(); as app) {
       <div class="soz-page soz-app-detail-page">
@@ -42,21 +52,31 @@ import { extractErrorMessage } from '../../core/utils/error-message';
                 <strong>Инвестор предложил профинансировать эту заявку!</strong>
                 <span>{{ app.approvedAmountByn }} BYN, {{ app.annualRatePercent }}% годовых. Посмотрите договор и решите.</span>
               </div>
-              <div class="soz-offer-actions">
-                <button mat-stroked-button (click)="openContract(app.id)" [disabled]="loadingContract()">
-                  <mat-icon>description</mat-icon> Договор
-                </button>
-                <button mat-raised-button color="primary" (click)="respond(app.id, true)" [disabled]="responding() !== null">
-                  @if (responding() === app.id) {
-                    <mat-spinner diameter="18"></mat-spinner>
-                  } @else {
-                    <ng-container><mat-icon>check</mat-icon> Принять</ng-container>
-                  }
-                </button>
-                <button mat-stroked-button color="warn" (click)="respond(app.id, false)" [disabled]="responding() !== null">
-                  Отклонить
-                </button>
-              </div>
+              @if (showAcceptOtp()) {
+                <soz-otp-confirm
+                  title="Подтвердите получение денег ОТП-кодом"
+                  [requestFn]="requestOtp"
+                  [confirmFn]="signAndAccept(app.id)"
+                  (confirmed)="onAccepted(app.id)"
+                  (cancelled)="showAcceptOtp.set(false)"
+                />
+              } @else {
+                <div class="soz-offer-actions">
+                  <button mat-stroked-button (click)="openContract(app.id)" [disabled]="loadingContract()">
+                    <mat-icon>description</mat-icon> Договор
+                  </button>
+                  <button mat-raised-button color="primary" (click)="showAcceptOtp.set(true)">
+                    <mat-icon>check</mat-icon> Взять деньги
+                  </button>
+                  <button mat-stroked-button color="warn" (click)="decline(app.id)" [disabled]="responding() !== null">
+                    @if (responding() === app.id) {
+                      <mat-spinner diameter="18"></mat-spinner>
+                    } @else {
+                      Отклонить
+                    }
+                  </button>
+                </div>
+              }
             </div>
           }
 
@@ -279,6 +299,7 @@ export class ApplicationDetailComponent implements OnInit {
   readonly application = signal<LoanApplication | null>(null);
   readonly responding = signal<string | null>(null);
   readonly loadingContract = signal(false);
+  readonly showAcceptOtp = signal(false);
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -321,19 +342,24 @@ export class ApplicationDetailComponent implements OnInit {
     });
   }
 
-  respond(applicationId: string, accept: boolean): void {
+  readonly requestOtp = () => this.marketplaceService.requestSignOtp();
+
+  signAndAccept(applicationId: string) {
+    return (code: string) => this.marketplaceService.confirmFunding(applicationId, code);
+  }
+
+  onAccepted(applicationId: string): void {
+    this.showAcceptOtp.set(false);
+    this.snackBar.open('Вы подписали договор — деньги зачислены на ваш баланс.', 'ОК', { duration: 4000 });
+    this.applicationsService.getMine(applicationId).subscribe((app) => this.application.set(app));
+  }
+
+  decline(applicationId: string): void {
     this.responding.set(applicationId);
-    const action = accept
-      ? this.marketplaceService.confirmFunding(applicationId)
-      : this.marketplaceService.declineFunding(applicationId);
-    action.subscribe({
+    this.marketplaceService.declineFunding(applicationId).subscribe({
       next: () => {
         this.responding.set(null);
-        this.snackBar.open(
-          accept ? 'Вы подтвердили заём — деньги зачислены на ваш баланс.' : 'Предложение отклонено, средства возвращены инвестору.',
-          'ОК',
-          { duration: 4000 },
-        );
+        this.snackBar.open('Предложение отклонено.', 'ОК', { duration: 4000 });
         this.applicationsService.getMine(applicationId).subscribe((app) => this.application.set(app));
       },
       error: (err) => {

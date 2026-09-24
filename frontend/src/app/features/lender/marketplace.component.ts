@@ -4,14 +4,16 @@ import { Router, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTabsModule } from '@angular/material/tabs';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MarketplaceService } from '../../core/services/marketplace.service';
-import { MarketplaceListing } from '../../core/models/models';
+import { ActiveDeal, MarketplaceListing } from '../../core/models/models';
+import { StatusBadgeComponent } from '../../shared/components/status-badge.component';
 
 @Component({
   selector: 'soz-marketplace',
   standalone: true,
-  imports: [CommonModule, RouterLink, MatCardModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule],
+  imports: [CommonModule, RouterLink, MatCardModule, MatButtonModule, MatIconModule, MatTabsModule, MatProgressSpinnerModule, StatusBadgeComponent],
   template: `
     <div class="soz-page">
       <div class="soz-header-row">
@@ -21,48 +23,90 @@ import { MarketplaceListing } from '../../core/models/models';
         </div>
         <a mat-button routerLink="/lender">← Кабинет инвестора</a>
       </div>
-      <p class="soz-hint">
-        <mat-icon inline>shield</mat-icon>
-        Данные о заёмщике обезличены. Указаны только скоринговый грейд, сумма, срок, ставка и цель займа.
-      </p>
 
-      @if (listings().length === 0) {
-        <p class="soz-empty">Сейчас нет заявок, открытых для финансирования.</p>
-      } @else {
-        <div class="soz-listing-list">
-          @for (listing of listings(); track listing.applicationId) {
-            <mat-card class="soz-listing-row soz-money-card">
-              <div class="soz-grade-badge" [class]="'soz-grade-' + listing.grade">{{ listing.grade }}</div>
+      <mat-tab-group>
+        <mat-tab label="Открытые заявки">
+          <p class="soz-hint">
+            <mat-icon inline>shield</mat-icon>
+            Данные о заёмщике обезличены. Указаны только скоринговый грейд, сумма, срок, ставка и цель займа.
+          </p>
 
-              <div class="soz-listing-main">
-                <div class="soz-listing-borrower">
-                  <mat-icon class="soz-borrower-icon">account_circle</mat-icon>
-                  <span>{{ listing.borrowerMaskedName ?? 'Заёмщик' }}</span>
-                </div>
-                <div class="soz-listing-amount">{{ listing.approvedAmountByn }} BYN</div>
-                <div class="soz-listing-purpose">{{ listing.purpose }}</div>
-              </div>
+          @if (listings().length === 0) {
+            <p class="soz-empty">Сейчас нет заявок, открытых для финансирования.</p>
+          } @else {
+            <div class="soz-listing-list">
+              @for (listing of listings(); track listing.applicationId) {
+                <mat-card class="soz-listing-row soz-money-card">
+                  <div class="soz-grade-badge" [class]="'soz-grade-' + listing.grade">{{ listing.grade }}</div>
 
-              <div class="soz-listing-stats">
-                <div><mat-icon>schedule</mat-icon><span>{{ listing.approvedTermMonths }} мес.</span></div>
-                <div><mat-icon>percent</mat-icon><span>{{ listing.annualRatePercent }}% годовых</span></div>
-                <div><mat-icon>person</mat-icon><span>1 инвестор</span></div>
-                @if (listing.fundingDeadline) {
-                  <div><mat-icon>event</mat-icon><span>до {{ listing.fundingDeadline | date: 'dd.MM.yyyy HH:mm' }}</span></div>
-                }
-                @if (listing.borrowerStats; as bs) {
-                  <div><mat-icon>handshake</mat-icon><span>{{ bs.dealsCount }} сделок, {{ bs.defaultedCount }} невыплат</span></div>
-                }
-              </div>
+                  <div class="soz-listing-main">
+                    <div class="soz-listing-borrower">
+                      <mat-icon class="soz-borrower-icon">account_circle</mat-icon>
+                      <span>{{ listing.borrowerMaskedName ?? 'Заёмщик' }}</span>
+                    </div>
+                    <div class="soz-listing-amount">{{ listing.approvedAmountByn }} BYN</div>
+                    <div class="soz-listing-purpose">{{ listing.purpose }}</div>
+                  </div>
 
-              <button mat-raised-button color="accent" class="soz-fund-btn" (click)="invest(listing)">
-                <mat-icon>bolt</mat-icon>
-                Профинансировать за {{ listing.remainingAmountByn }} BYN
-              </button>
-            </mat-card>
+                  <div class="soz-listing-stats">
+                    <div><mat-icon>schedule</mat-icon><span>{{ listing.approvedTermMonths }} мес.</span></div>
+                    <div><mat-icon>percent</mat-icon><span>{{ listing.annualRatePercent }}% годовых</span></div>
+                    <div><mat-icon>person</mat-icon><span>1 инвестор</span></div>
+                    @if (listing.fundingDeadline) {
+                      <div><mat-icon>event</mat-icon><span>до {{ listing.fundingDeadline | date: 'dd.MM.yyyy HH:mm' }}</span></div>
+                    }
+                    @if (listing.borrowerStats; as bs) {
+                      <div><mat-icon>handshake</mat-icon><span>{{ bs.dealsCount }} сделок, {{ bs.defaultedCount }} невыплат</span></div>
+                    }
+                  </div>
+
+                  <button mat-raised-button color="accent" class="soz-fund-btn" (click)="invest(listing)">
+                    <mat-icon>bolt</mat-icon>
+                    Профинансировать за {{ listing.remainingAmountByn }} BYN
+                  </button>
+                </mat-card>
+              }
+            </div>
           }
-        </div>
-      }
+        </mat-tab>
+
+        <mat-tab label="Активные сделки">
+          <p class="soz-hint">
+            <mat-icon inline>handshake</mat-icon>
+            Сделки, по которым обе стороны подписали договор — данные обезличены.
+          </p>
+
+          @if (activeDeals().length === 0) {
+            <p class="soz-empty">Активных сделок пока нет.</p>
+          } @else {
+            <div class="soz-listing-list">
+              @for (deal of activeDeals(); track deal.loanId) {
+                <mat-card class="soz-listing-row soz-money-card">
+                  <div class="soz-deal-icon"><mat-icon>handshake</mat-icon></div>
+
+                  <div class="soz-listing-main">
+                    <div class="soz-listing-borrower">
+                      <mat-icon class="soz-borrower-icon">account_circle</mat-icon>
+                      <span>{{ deal.borrowerMaskedName ?? 'Заёмщик' }}</span>
+                      <mat-icon class="soz-borrower-icon">trending_up</mat-icon>
+                      <span>{{ deal.investorMaskedName ?? 'Инвестор' }}</span>
+                    </div>
+                    <div class="soz-listing-amount">{{ deal.principalByn }} BYN</div>
+                    <div class="soz-listing-purpose">Выдан {{ deal.issuedAt | date: 'dd.MM.yyyy' }}</div>
+                  </div>
+
+                  <div class="soz-listing-stats">
+                    <div><mat-icon>schedule</mat-icon><span>{{ deal.termMonths }} мес.</span></div>
+                    <div><mat-icon>percent</mat-icon><span>{{ deal.annualRatePercent }}% годовых</span></div>
+                  </div>
+
+                  <soz-status-badge [status]="deal.status" />
+                </mat-card>
+              }
+            </div>
+          }
+        </mat-tab>
+      </mat-tab-group>
     </div>
   `,
   styles: [
@@ -87,7 +131,7 @@ import { MarketplaceListing } from '../../core/models/models';
         display: flex;
         align-items: center;
         gap: 4px;
-        margin-bottom: 16px;
+        margin: 16px 0;
       }
       .soz-empty {
         padding: 24px 0;
@@ -125,6 +169,18 @@ import { MarketplaceListing } from '../../core/models/models';
       .soz-grade-E {
         background: #ca8a04;
       }
+      .soz-deal-icon {
+        flex: 0 0 auto;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        background: var(--soz-money-gradient-bold);
+        box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.3);
+      }
       .soz-listing-main {
         flex: 1 1 220px;
         min-width: 200px;
@@ -139,6 +195,7 @@ import { MarketplaceListing } from '../../core/models/models';
         font-size: 13px;
         font-weight: 600;
         color: var(--mat-sys-on-surface-variant);
+        flex-wrap: wrap;
       }
       .soz-borrower-icon {
         font-size: 18px;
@@ -195,6 +252,7 @@ import { MarketplaceListing } from '../../core/models/models';
 })
 export class MarketplaceComponent implements OnInit {
   readonly listings = signal<MarketplaceListing[]>([]);
+  readonly activeDeals = signal<ActiveDeal[]>([]);
 
   constructor(
     private readonly marketplaceService: MarketplaceService,
@@ -203,6 +261,7 @@ export class MarketplaceComponent implements OnInit {
 
   ngOnInit(): void {
     this.marketplaceService.listListings().subscribe((listings) => this.listings.set(listings));
+    this.marketplaceService.listActiveDeals().subscribe((deals) => this.activeDeals.set(deals));
   }
 
   invest(listing: MarketplaceListing): void {

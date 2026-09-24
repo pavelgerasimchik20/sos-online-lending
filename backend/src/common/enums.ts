@@ -13,6 +13,8 @@ export enum OtpPurpose {
   REGISTRATION = 'REGISTRATION',
   LOGIN = 'LOGIN',
   PASSWORD_RESET = 'PASSWORD_RESET',
+  /** Мок-подпись договора займа (и инвестором, и заёмщиком — каждый своим кодом на свой номер). */
+  CONTRACT_SIGNATURE = 'CONTRACT_SIGNATURE',
 }
 
 export enum KycStatus {

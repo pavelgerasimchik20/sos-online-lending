@@ -222,6 +222,8 @@ export interface ContractData {
   annualRatePercent?: number;
   purpose: string;
   createdAt: string;
+  lenderSignedAt?: string;
+  borrowerSignedAt?: string;
   borrower: Profile;
   lender: Profile;
   schedule: ScheduleRow[];
@@ -234,6 +236,19 @@ export interface LenderCommitment {
   amountByn: number;
   status: CommitmentStatus;
   createdAt: string;
+  lenderSignedAt?: string;
+  borrowerSignedAt?: string;
+}
+
+export interface ActiveDeal {
+  loanId: string;
+  status: LoanStatus;
+  principalByn: number;
+  annualRatePercent: number;
+  termMonths: number;
+  issuedAt: string;
+  borrowerMaskedName?: string;
+  investorMaskedName?: string;
 }
 
 export interface Loan {

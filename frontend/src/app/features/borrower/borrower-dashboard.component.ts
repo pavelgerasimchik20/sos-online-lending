@@ -23,6 +23,7 @@ import {
 } from '../../core/models/models';
 import { StatusBadgeComponent } from '../../shared/components/status-badge.component';
 import { VerificationBannerComponent } from '../../shared/components/verification-banner.component';
+import { OtpConfirmComponent } from '../../shared/components/otp-confirm.component';
 import { extractErrorMessage } from '../../core/utils/error-message';
 
 @Component({
@@ -38,6 +39,7 @@ import { extractErrorMessage } from '../../core/utils/error-message';
     MatProgressSpinnerModule,
     StatusBadgeComponent,
     VerificationBannerComponent,
+    OtpConfirmComponent,
   ],
   template: `
     <div class="soz-page">
@@ -69,24 +71,34 @@ import { extractErrorMessage } from '../../core/utils/error-message';
               <strong>Инвестор предложил профинансировать вашу заявку!</strong>
               <span>
                 {{ pendingApp.approvedAmountByn }} BYN на {{ pendingApp.approvedTermMonths }} мес.,
-                {{ pendingApp.annualRatePercent }}% годовых. Посмотрите договор и решите — принять или отклонить.
+                {{ pendingApp.annualRatePercent }}% годовых. Посмотрите договор и решите — принять (взять деньги) или отклонить.
               </span>
             </div>
-            <div class="soz-offer-actions">
-              <button mat-stroked-button (click)="openContract(pendingApp.id)" [disabled]="loadingContract()">
-                <mat-icon>description</mat-icon> Договор
-              </button>
-              <button mat-raised-button color="primary" (click)="respond(pendingApp.id, true)" [disabled]="responding() !== null">
-                @if (responding() === pendingApp.id) {
-                  <mat-spinner diameter="18"></mat-spinner>
-                } @else {
-                  <ng-container><mat-icon>check</mat-icon> Принять</ng-container>
-                }
-              </button>
-              <button mat-stroked-button color="warn" (click)="respond(pendingApp.id, false)" [disabled]="responding() !== null">
-                Отклонить
-              </button>
-            </div>
+            @if (showAcceptOtp()) {
+              <soz-otp-confirm
+                title="Подтвердите получение денег ОТП-кодом"
+                [requestFn]="requestOtp"
+                [confirmFn]="signAndAccept(pendingApp.id)"
+                (confirmed)="onAccepted()"
+                (cancelled)="showAcceptOtp.set(false)"
+              />
+            } @else {
+              <div class="soz-offer-actions">
+                <button mat-stroked-button (click)="openContract(pendingApp.id)" [disabled]="loadingContract()">
+                  <mat-icon>description</mat-icon> Договор
+                </button>
+                <button mat-raised-button color="primary" (click)="showAcceptOtp.set(true)">
+                  <mat-icon>check</mat-icon> Взять деньги
+                </button>
+                <button mat-stroked-button color="warn" (click)="decline(pendingApp.id)" [disabled]="responding() !== null">
+                  @if (responding() === pendingApp.id) {
+                    <mat-spinner diameter="18"></mat-spinner>
+                  } @else {
+                    Отклонить
+                  }
+                </button>
+              </div>
+            }
           </mat-card>
         }
       }
@@ -378,6 +390,7 @@ export class BorrowerDashboardComponent implements OnInit {
   readonly hasActiveApplication = computed(() => this.activeApplication() !== null);
   readonly responding = signal<string | null>(null);
   readonly loadingContract = signal(false);
+  readonly showAcceptOtp = signal(false);
 
   constructor(
     private readonly applicationsService: LoanApplicationsService,
@@ -421,6 +434,34 @@ export class BorrowerDashboardComponent implements OnInit {
     });
   }
 
+  readonly requestOtp = () => this.marketplaceService.requestSignOtp();
+
+  signAndAccept(applicationId: string) {
+    return (code: string) => this.marketplaceService.confirmFunding(applicationId, code);
+  }
+
+  onAccepted(): void {
+    this.showAcceptOtp.set(false);
+    this.snackBar.open('Вы подписали договор — деньги зачислены на ваш баланс.', 'ОК', { duration: 4000 });
+    this.applicationsService.listMine().subscribe((apps) => this.applications.set(apps));
+    this.loansService.listMine().subscribe((loans) => this.loans.set(loans));
+  }
+
+  decline(applicationId: string): void {
+    this.responding.set(applicationId);
+    this.marketplaceService.declineFunding(applicationId).subscribe({
+      next: () => {
+        this.responding.set(null);
+        this.snackBar.open('Предложение отклонено.', 'ОК', { duration: 4000 });
+        this.applicationsService.listMine().subscribe((apps) => this.applications.set(apps));
+      },
+      error: (err) => {
+        this.responding.set(null);
+        this.snackBar.open(extractErrorMessage(err, 'Не удалось обработать ответ'), 'ОК', { duration: 4000 });
+      },
+    });
+  }
+
   openContract(applicationId: string): void {
     this.loadingContract.set(true);
     this.marketplaceService.getCommitmentForApplication(applicationId).subscribe({
@@ -431,29 +472,6 @@ export class BorrowerDashboardComponent implements OnInit {
       error: (err) => {
         this.loadingContract.set(false);
         this.snackBar.open(extractErrorMessage(err, 'Не удалось открыть договор'), 'ОК', { duration: 4000 });
-      },
-    });
-  }
-
-  respond(applicationId: string, accept: boolean): void {
-    this.responding.set(applicationId);
-    const action = accept
-      ? this.marketplaceService.confirmFunding(applicationId)
-      : this.marketplaceService.declineFunding(applicationId);
-    action.subscribe({
-      next: () => {
-        this.responding.set(null);
-        this.snackBar.open(
-          accept ? 'Вы подтвердили заём — деньги зачислены на ваш баланс.' : 'Предложение отклонено, средства возвращены инвестору.',
-          'ОК',
-          { duration: 4000 },
-        );
-        this.applicationsService.listMine().subscribe((apps) => this.applications.set(apps));
-        this.loansService.listMine().subscribe((loans) => this.loans.set(loans));
-      },
-      error: (err) => {
-        this.responding.set(null);
-        this.snackBar.open(extractErrorMessage(err, 'Не удалось обработать ответ'), 'ОК', { duration: 4000 });
       },
     });
   }

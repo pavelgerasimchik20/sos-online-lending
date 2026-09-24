@@ -83,12 +83,20 @@ import { extractErrorMessage } from '../../core/utils/error-message';
             <div>
               <strong>Займодавец:</strong>
               <p>{{ fullName(d.lender) }}</p>
-              <p class="soz-sign-line">Подпись: _______________</p>
+              @if (d.lenderSignedAt) {
+                <p class="soz-signed-line">✓ Подписано ОТП {{ d.lenderSignedAt | date: 'dd.MM.yyyy HH:mm' }}</p>
+              } @else {
+                <p class="soz-sign-line">Подпись: _______________</p>
+              }
             </div>
             <div>
               <strong>Заёмщик:</strong>
               <p>{{ fullName(d.borrower) }}</p>
-              <p class="soz-sign-line">Подпись: _______________</p>
+              @if (d.borrowerSignedAt) {
+                <p class="soz-signed-line">✓ Подписано ОТП {{ d.borrowerSignedAt | date: 'dd.MM.yyyy HH:mm' }}</p>
+              } @else {
+                <p class="soz-sign-line">Подпись: _______________</p>
+              }
             </div>
           </div>
 
@@ -169,6 +177,11 @@ import { extractErrorMessage } from '../../core/utils/error-message';
       .soz-sign-line {
         margin-top: 32px;
       }
+      .soz-signed-line {
+        margin-top: 32px;
+        color: var(--soz-money-green-dark, #065f46);
+        font-weight: 600;
+      }
       .soz-contract-schedule {
         width: 100%;
         border-collapse: collapse;
@@ -235,7 +248,8 @@ import { extractErrorMessage } from '../../core/utils/error-message';
           gap: 16px;
           margin-top: 6px;
         }
-        .soz-sign-line {
+        .soz-sign-line,
+        .soz-signed-line {
           margin-top: 16px;
         }
         .soz-contract-schedule {

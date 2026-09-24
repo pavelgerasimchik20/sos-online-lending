@@ -1,6 +1,7 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { tap } from 'rxjs';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -8,11 +9,12 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MarketplaceService } from '../../core/services/marketplace.service';
 import { MarketplaceListing } from '../../core/models/models';
 import { extractErrorMessage } from '../../core/utils/error-message';
+import { OtpConfirmComponent } from '../../shared/components/otp-confirm.component';
 
 @Component({
   selector: 'soz-invest',
   standalone: true,
-  imports: [CommonModule, RouterLink, MatCardModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule],
+  imports: [CommonModule, RouterLink, MatCardModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, OtpConfirmComponent],
   template: `
     <div class="soz-page soz-invest-page">
       <a routerLink="/lender/marketplace" class="soz-back">← К маркетплейсу</a>
@@ -49,31 +51,27 @@ import { extractErrorMessage } from '../../core/utils/error-message';
           </mat-card-header>
           <mat-card-content>
             <ol>
-              <li>Вы нажимаете «Инвестировать» — сумма {{ l.approvedAmountByn }} BYN резервируется на вашем кошельке, формируется договор займа.</li>
-              <li>Заёмщик видит предложение в личном кабинете и договор — принимает или отклоняет.</li>
-              <li>Если заёмщик принял — деньги поступают ему, вы видите сделку в «Моём портфеле» и график платежей.</li>
-              <li>Если отклонил или не ответил в срок — средства автоматически возвращаются на ваш кошелёк.</li>
+              <li>Вы нажимаете «Инвестировать» и подписываете предложение ОТП-кодом на свой номер — договор сформирован, но деньги пока НЕ списаны с вашего кошелька.</li>
+              <li>Заёмщик видит предложение и договор в личном кабинете — принимает (тоже подписывает ОТП-кодом) или отклоняет.</li>
+              <li>Только когда заёмщик подписал — с вашего кошелька списывается сумма, деньги поступают ему, сделка становится активной и видна во вкладке «Активные сделки».</li>
+              <li>Если отклонил или не ответил в срок — предложение просто закрывается, деньги никуда не резервировались.</li>
             </ol>
           </mat-card-content>
         </mat-card>
 
-        @if (error()) {
-          <p class="soz-error">{{ error() }}</p>
+        @if (showOtp()) {
+          <soz-otp-confirm
+            title="Подпишите предложение инвестора ОТП-кодом"
+            [requestFn]="requestOtp"
+            [confirmFn]="signAndPropose(l)"
+            (confirmed)="onProposed()"
+            (cancelled)="showOtp.set(false)"
+          />
+        } @else {
+          <button mat-raised-button color="accent" class="soz-invest-btn" (click)="showOtp.set(true)">
+            <mat-icon>bolt</mat-icon> Инвестировать {{ l.approvedAmountByn }} BYN
+          </button>
         }
-
-        <button
-          mat-raised-button
-          color="accent"
-          class="soz-invest-btn"
-          (click)="invest(l)"
-          [disabled]="investing()"
-        >
-          @if (investing()) {
-            <mat-spinner diameter="20"></mat-spinner>
-          } @else {
-            <ng-container><mat-icon>bolt</mat-icon> Инвестировать {{ l.approvedAmountByn }} BYN</ng-container>
-          }
-        </button>
       } @else if (loadError()) {
         <p class="soz-error">{{ loadError() }}</p>
       }
@@ -158,9 +156,10 @@ import { extractErrorMessage } from '../../core/utils/error-message';
 })
 export class InvestComponent implements OnInit {
   readonly listing = signal<MarketplaceListing | null>(null);
-  readonly investing = signal(false);
-  readonly error = signal<string | null>(null);
   readonly loadError = signal<string | null>(null);
+  readonly showOtp = signal(false);
+
+  private newCommitmentId: string | null = null;
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -183,18 +182,20 @@ export class InvestComponent implements OnInit {
     });
   }
 
-  invest(listing: MarketplaceListing): void {
-    this.investing.set(true);
-    this.error.set(null);
-    this.marketplaceService.propose(listing.applicationId, listing.remainingAmountByn).subscribe({
-      next: (commitment) => {
-        this.investing.set(false);
-        this.router.navigateByUrl(`/contract/${commitment.id}`);
-      },
-      error: (err) => {
-        this.investing.set(false);
-        this.error.set(extractErrorMessage(err, 'Не удалось создать предложение'));
-      },
-    });
+  readonly requestOtp = () => this.marketplaceService.requestSignOtp();
+
+  signAndPropose(listing: MarketplaceListing) {
+    return (code: string) =>
+      this.marketplaceService.propose(listing.applicationId, listing.remainingAmountByn, code).pipe(
+        tap((commitment) => {
+          this.newCommitmentId = commitment.id;
+        }),
+      );
+  }
+
+  onProposed(): void {
+    if (this.newCommitmentId) {
+      this.router.navigateByUrl(`/contract/${this.newCommitmentId}`);
+    }
   }
 }

@@ -78,7 +78,8 @@ export class AuthService {
     return { devCode: isProduction ? undefined : code, expiresInSeconds: ttlSeconds };
   }
 
-  private async verifyOtp(phone: string, purpose: OtpPurpose, code: string): Promise<void> {
+  /** Публичный метод — переиспользуется другими модулями (например, мок-подпись договора). */
+  async verifyOtp(phone: string, purpose: OtpPurpose, code: string): Promise<void> {
     const otp = await this.otpRepo.findOne({
       where: { phone, purpose },
       order: { createdAt: 'DESC' },

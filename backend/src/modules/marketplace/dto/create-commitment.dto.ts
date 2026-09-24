@@ -1,4 +1,4 @@
-import { IsNumber, IsUUID, Min } from 'class-validator';
+import { IsNumber, IsString, IsUUID, Length, Min } from 'class-validator';
 
 export class CreateCommitmentDto {
   @IsUUID()
@@ -7,4 +7,8 @@ export class CreateCommitmentDto {
   @IsNumber()
   @Min(10)
   amountByn: number;
+
+  @IsString()
+  @Length(6, 6, { message: 'Код подтверждения — 6 цифр' })
+  otpCode: string;
 }

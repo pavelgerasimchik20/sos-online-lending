@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { MarketplaceService } from './marketplace.service';
 import { CreateCommitmentDto } from './dto/create-commitment.dto';
+import { ConfirmFundingDto } from './dto/confirm-funding.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -18,12 +19,18 @@ export class MarketplaceController {
     return this.marketplaceService.listOpenListings();
   }
 
-  /** Инвестор предлагает профинансировать заявку целиком (деньги резервируются, но не выданы — ждём подтверждения заёмщика). */
+  /** Обезличенный публичный список активных сделок — вкладка "Активные сделки". */
+  @Get('active-deals')
+  listActiveDeals() {
+    return this.marketplaceService.listActiveDeals();
+  }
+
+  /** Инвестор предлагает профинансировать заявку целиком и подписывает предложение ОТП-кодом (деньги на этом шаге не списываются). */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.LENDER)
   @Post('commitments')
   propose(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateCommitmentDto) {
-    return this.marketplaceService.propose(user.userId, dto.applicationId, dto.amountByn);
+    return this.marketplaceService.propose(user.userId, dto.applicationId, dto.amountByn, dto.otpCode);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -49,12 +56,12 @@ export class MarketplaceController {
     return this.marketplaceService.getCurrentCommitmentForBorrower(user.userId, applicationId);
   }
 
-  /** Заёмщик подтверждает предложение инвестора — заём выдаётся. */
+  /** Заёмщик подтверждает получение денег и подписывает договор ОТП-кодом — заём выдаётся. */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.BORROWER)
   @Post('applications/:id/confirm-funding')
-  confirmFunding(@CurrentUser() user: AuthenticatedUser, @Param('id') applicationId: string) {
-    return this.marketplaceService.confirmFunding(user.userId, applicationId);
+  confirmFunding(@CurrentUser() user: AuthenticatedUser, @Param('id') applicationId: string, @Body() dto: ConfirmFundingDto) {
+    return this.marketplaceService.confirmFunding(user.userId, applicationId, dto.otpCode);
   }
 
   /** Заёмщик отклоняет предложение инвестора — средства возвращаются инвестору. */

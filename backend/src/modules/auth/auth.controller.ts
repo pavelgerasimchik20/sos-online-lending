@@ -15,7 +15,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser, AuthenticatedUser } from '../../common/decorators/current-user.decorator';
-import { UserRole } from '../../common/enums';
+import { OtpPurpose, UserRole } from '../../common/enums';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -25,6 +25,16 @@ export class AuthController {
   @Post('otp/request')
   requestOtp(@Body() dto: RequestOtpDto) {
     return this.authService.requestOtp(dto.phone, dto.purpose);
+  }
+
+  /** Мок-код для подписи договора займа — на собственный номер текущего пользователя. */
+  @UseGuards(JwtAuthGuard)
+  @Post('otp/request-signing')
+  requestSigningOtp(@CurrentUser() user: AuthenticatedUser) {
+    if (!user.phone) {
+      throw new BadRequestException('Подпись договора доступна только пользователям с подтверждённым телефоном');
+    }
+    return this.authService.requestOtp(user.phone, OtpPurpose.CONTRACT_SIGNATURE);
   }
 
   @Post('register/confirm')
