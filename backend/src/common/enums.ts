@@ -57,6 +57,7 @@ export enum ScoringGrade {
   C = 'C',
   D = 'D',
   E = 'E',
+  F = 'F',
 }
 
 export enum CommitmentStatus {
