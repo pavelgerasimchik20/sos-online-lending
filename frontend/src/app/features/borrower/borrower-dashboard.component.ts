@@ -149,19 +149,28 @@ import { extractErrorMessage } from '../../core/utils/error-message';
           } @else {
             <div class="soz-card-grid">
               @for (app of applications(); track app.id) {
-                <mat-card [routerLink]="['/borrower/applications', app.id]" class="soz-clickable-card soz-money-card">
-                  <mat-card-header>
-                    <mat-card-title>{{ app.requestedAmountByn }} BYN на {{ app.requestedTermMonths }} мес.</mat-card-title>
-                    <mat-card-subtitle>{{ app.purpose }}</mat-card-subtitle>
-                  </mat-card-header>
-                  <mat-card-content>
-                    <soz-status-badge [status]="app.status" />
-                    @if (app.status === Status.PUBLISHED_FOR_FUNDING) {
-                      <p class="soz-funding-progress">
-                        Собрано {{ app.fundedAmountByn }} из {{ app.approvedAmountByn }} BYN
-                      </p>
+                <mat-card [routerLink]="['/borrower/applications', app.id]" class="soz-clickable-card soz-money-card soz-app-tile">
+                  <div class="soz-app-tile-head">
+                    @if (app.grade) {
+                      <div class="soz-mini-grade" [class]="'soz-mini-grade-' + app.grade">{{ app.grade }}</div>
+                    } @else {
+                      <div class="soz-mini-grade soz-mini-grade-pending"><mat-icon>hourglass_top</mat-icon></div>
                     }
-                  </mat-card-content>
+                    <div>
+                      <div class="soz-app-tile-amount">{{ app.requestedAmountByn }} BYN</div>
+                      <div class="soz-app-tile-sub">{{ app.requestedTermMonths }} мес. · {{ app.purpose }}</div>
+                    </div>
+                  </div>
+                  <soz-status-badge [status]="app.status" />
+                  @if (app.status === Status.AWAITING_BORROWER_CONFIRMATION) {
+                    <p class="soz-funding-progress soz-offer-hint">
+                      <mat-icon inline>notifications_active</mat-icon> Есть предложение инвестора — откройте, чтобы ответить
+                    </p>
+                  } @else if (app.status === Status.PUBLISHED_FOR_FUNDING) {
+                    <p class="soz-funding-progress">
+                      Собрано {{ app.fundedAmountByn }} из {{ app.approvedAmountByn }} BYN
+                    </p>
+                  }
                 </mat-card>
               }
             </div>
@@ -292,6 +301,58 @@ import { extractErrorMessage } from '../../core/utils/error-message';
       }
       .soz-funding-progress {
         font-size: 13px;
+        color: var(--mat-sys-on-surface-variant);
+      }
+      .soz-offer-hint {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: #2563eb;
+        font-weight: 600;
+      }
+      .soz-app-tile {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 16px;
+      }
+      .soz-app-tile-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .soz-mini-grade {
+        flex-shrink: 0;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 14px;
+        color: white;
+        background: #16a34a;
+      }
+      .soz-mini-grade-D,
+      .soz-mini-grade-E {
+        background: #ca8a04;
+      }
+      .soz-mini-grade-pending {
+        background: var(--mat-sys-outline);
+      }
+      .soz-mini-grade-pending mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+      }
+      .soz-app-tile-amount {
+        font-size: 18px;
+        font-weight: 800;
+        color: var(--soz-money-green-dark);
+      }
+      .soz-app-tile-sub {
+        font-size: 12px;
         color: var(--mat-sys-on-surface-variant);
       }
     `,
