@@ -11,13 +11,9 @@ export class ScoringResult extends BaseEntity {
   @Column()
   inn: string;
 
-  /** Полный мок-ответ БКИ, как будто действительно полученный от бюро. */
+  /** Полный мок-ответ АИС КР (кредитная история + долговая нагрузка), как будто действительно полученный от системы. */
   @Column('jsonb')
-  bkiReport: Record<string, unknown>;
-
-  /** Полный мок-ответ АИС КР (долговая нагрузка). */
-  @Column('jsonb')
-  aisKrReport: Record<string, unknown>;
+  creditReport: Record<string, unknown>;
 
   @Column('decimal', { precision: 5, scale: 4 })
   debtToIncomeRatio: number;

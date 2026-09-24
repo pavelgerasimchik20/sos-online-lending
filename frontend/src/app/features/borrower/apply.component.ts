@@ -69,7 +69,7 @@ import { extractErrorMessage } from '../../core/utils/error-message';
                 }
               </button>
               <p class="soz-hint">
-                После подачи платформа мгновенно запросит данные в АИС КР и БКИ (мок) и вынесет решение.
+                После подачи платформа мгновенно запросит данные в АИС КР (мок) и вынесет решение.
               </p>
             </form>
           </mat-card-content>

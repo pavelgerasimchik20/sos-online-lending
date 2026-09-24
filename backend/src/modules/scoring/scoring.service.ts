@@ -2,7 +2,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ScoringResult } from './scoring-result.entity';
-import { CREDIT_BUREAU_PORT, CreditBureauPort } from '../../integrations/interfaces/credit-bureau.port';
 import {
   CREDIT_REGISTRY_PORT,
   CreditRegistryPort,
@@ -24,67 +23,63 @@ export class ScoringService {
   constructor(
     @InjectRepository(ScoringResult)
     private readonly repo: Repository<ScoringResult>,
-    @Inject(CREDIT_BUREAU_PORT) private readonly bkiPort: CreditBureauPort,
     @Inject(CREDIT_REGISTRY_PORT) private readonly aisKrPort: CreditRegistryPort,
   ) {}
 
   async score(input: ScoringInput): Promise<ScoringResult> {
     const fullName = `${input.profile.lastName} ${input.profile.firstName} ${input.profile.patronymic ?? ''}`.trim();
-    const [bki, aisKr] = await Promise.all([
-      this.bkiPort.fetchReport(input.profile.inn, fullName),
-      this.aisKrPort.fetchDebtLoad(input.profile.inn, fullName),
-    ]);
+    const report = await this.aisKrPort.fetchDebtLoad(input.profile.inn, fullName);
 
     const reasons: string[] = [];
 
-    // --- Базовый балл по кредитной истории (БКИ) ---
+    // --- Базовый балл по кредитной истории (АИС КР) ---
     let score = 500;
 
-    const historyBonus = Math.min(bki.creditHistoryMonths, 60) * 1.5;
+    const historyBonus = Math.min(report.creditHistoryMonths, 60) * 1.5;
     score += historyBonus;
-    reasons.push(`Кредитная история: ${bki.creditHistoryMonths} мес. (${historyBonus >= 0 ? '+' : ''}${round2(historyBonus)} б.)`);
+    reasons.push(`Кредитная история: ${report.creditHistoryMonths} мес. (${historyBonus >= 0 ? '+' : ''}${round2(historyBonus)} б.)`);
 
-    const delinquencyPenalty = delinquencyScorePenalty(bki.worstDelinquencyDaysEver);
+    const delinquencyPenalty = delinquencyScorePenalty(report.worstDelinquencyDaysEver);
     score += delinquencyPenalty;
-    if (bki.worstDelinquencyDaysEver > 0) {
+    if (report.worstDelinquencyDaysEver > 0) {
       reasons.push(
-        `Максимальная просрочка в прошлом: ${bki.worstDelinquencyDaysEver} дн. (${delinquencyPenalty} б.)`,
+        `Максимальная просрочка в прошлом: ${report.worstDelinquencyDaysEver} дн. (${delinquencyPenalty} б.)`,
       );
     } else {
       reasons.push('Просрочек в кредитной истории не выявлено (+0 б.)');
     }
 
-    const recentDelinquencyPenalty = bki.delinquenciesLast12Months * -20;
+    const recentDelinquencyPenalty = report.delinquenciesLast12Months * -20;
     score += recentDelinquencyPenalty;
-    if (bki.delinquenciesLast12Months > 0) {
+    if (report.delinquenciesLast12Months > 0) {
       reasons.push(
-        `Просрочки за последние 12 мес.: ${bki.delinquenciesLast12Months} (${recentDelinquencyPenalty} б.)`,
+        `Просрочки за последние 12 мес.: ${report.delinquenciesLast12Months} (${recentDelinquencyPenalty} б.)`,
       );
     }
 
     let utilizationAdj = 10;
-    if (bki.creditLimitUtilizationRatio > 0.7) {
+    if (report.creditLimitUtilizationRatio > 0.7) {
       utilizationAdj = -40;
-    } else if (bki.creditLimitUtilizationRatio > 0.4) {
+    } else if (report.creditLimitUtilizationRatio > 0.4) {
       utilizationAdj = -15;
     }
     score += utilizationAdj;
     reasons.push(
-      `Использование кредитных лимитов: ${Math.round(bki.creditLimitUtilizationRatio * 100)}% (${utilizationAdj >= 0 ? '+' : ''}${utilizationAdj} б.)`,
+      `Использование кредитных лимитов: ${Math.round(report.creditLimitUtilizationRatio * 100)}% (${utilizationAdj >= 0 ? '+' : ''}${utilizationAdj} б.)`,
     );
 
-    const activeLoansPenalty = Math.max(0, bki.activeLoansCount - 1) * -15;
+    const activeLoansPenalty = Math.max(0, report.activeLoansCount - 1) * -15;
     score += activeLoansPenalty;
     if (activeLoansPenalty < 0) {
-      reasons.push(`Действующих займов у БКИ: ${bki.activeLoansCount} (${activeLoansPenalty} б.)`);
+      reasons.push(`Действующих займов по данным АИС КР: ${report.activeLoansCount} (${activeLoansPenalty} б.)`);
     }
 
-    if (bki.hasActiveCollectionCase) {
+    if (report.hasActiveCollectionCase) {
       score -= 300;
-      reasons.push('Есть активное дело о взыскании по данным БКИ (-300 б.)');
+      reasons.push('Есть активное дело о взыскании по данным АИС КР (-300 б.)');
     }
 
-    // --- Долговая нагрузка (АИС КР + декларируемый доход) ---
+    // --- Долговая нагрузка (по данным АИС КР + декларируемый доход) ---
     const referenceRate = LEGAL_RULES.RATES.GRADE_ANNUAL_RATE_PERCENT.C;
     const estimatedNewPayment = annuityPayment(
       input.requestedAmountByn,
@@ -92,7 +87,7 @@ export class ScoringService {
       input.requestedTermMonths,
     );
     const income = Number(input.profile.declaredMonthlyIncomeByn);
-    const dti = income > 0 ? (aisKr.totalMonthlyObligationsByn + estimatedNewPayment) / income : 1;
+    const dti = income > 0 ? (report.totalMonthlyObligationsByn + estimatedNewPayment) / income : 1;
 
     let dtiAdj = 40;
     if (dti > LEGAL_RULES.UNDERWRITING.MAX_DEBT_TO_INCOME_RATIO) {
@@ -112,7 +107,7 @@ export class ScoringService {
 
     // --- Расчёт максимально доступной суммы по остатку платёжеспособности ---
     const maxMonthlyPayment =
-      income * LEGAL_RULES.UNDERWRITING.MAX_DEBT_TO_INCOME_RATIO - aisKr.totalMonthlyObligationsByn;
+      income * LEGAL_RULES.UNDERWRITING.MAX_DEBT_TO_INCOME_RATIO - report.totalMonthlyObligationsByn;
     const maxAmountByCapacity = round2(
       maxPrincipalForPayment(maxMonthlyPayment, annualRatePercent, input.requestedTermMonths),
     );
@@ -122,7 +117,7 @@ export class ScoringService {
     let approvedTermMonths: number | undefined = input.requestedTermMonths;
 
     const hardReject =
-      bki.hasActiveCollectionCase ||
+      report.hasActiveCollectionCase ||
       score < LEGAL_RULES.UNDERWRITING.MIN_SCORE_TO_APPROVE ||
       maxAmountByCapacity < LEGAL_RULES.LOAN.MIN_AMOUNT_BYN;
 
@@ -156,8 +151,7 @@ export class ScoringService {
     const result = this.repo.create({
       applicationId: input.applicationId,
       inn: input.profile.inn,
-      bkiReport: bki as unknown as Record<string, unknown>,
-      aisKrReport: aisKr as unknown as Record<string, unknown>,
+      creditReport: report as unknown as Record<string, unknown>,
       debtToIncomeRatio: round2(dti),
       score,
       grade,

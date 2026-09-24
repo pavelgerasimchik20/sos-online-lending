@@ -118,7 +118,7 @@ export class CollectionsService {
           await this.smsGateway.send(
             borrower.phone,
             SmsTemplate.LEGAL_ACTION_NOTICE,
-            `SOS: Задолженность по займу №${loan.id.slice(0, 8)} передана на взыскание (просрочка ${maxDaysOverdue} дн.). Сведения переданы в БКИ.`,
+            `SOS: Задолженность по займу №${loan.id.slice(0, 8)} передана на взыскание (просрочка ${maxDaysOverdue} дн.). Сведения переданы в АИС КР.`,
             { loanId: loan.id },
           );
         }
