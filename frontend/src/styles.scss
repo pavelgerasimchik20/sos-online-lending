@@ -150,6 +150,7 @@ body {
    краем фонового изображения (background-size: contain, ширина = высота * 7/12). */
 .soz-auth-card {
   margin-left: min(calc((100vh - 64px) * 0.5833), 38%);
+  gap: 2rem;
 }
 
 .soz-auth-bg-overlay {
@@ -220,6 +221,7 @@ body {
     font-size: 14px;
   }
 }
+
 
 /* --- Денежная тема: карточки, стекло, свечение --- */
 

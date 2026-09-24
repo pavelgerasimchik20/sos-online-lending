@@ -5,10 +5,13 @@ import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { LoanApplicationsService } from '../../core/services/loan-applications.service';
 import { LoansService } from '../../core/services/loans.service';
 import { ProfilesService } from '../../core/services/profiles.service';
 import { AuthService } from '../../core/services/auth.service';
+import { MarketplaceService } from '../../core/services/marketplace.service';
 import {
   LoanApplication,
   Loan,
@@ -20,6 +23,7 @@ import {
 } from '../../core/models/models';
 import { StatusBadgeComponent } from '../../shared/components/status-badge.component';
 import { VerificationBannerComponent } from '../../shared/components/verification-banner.component';
+import { extractErrorMessage } from '../../core/utils/error-message';
 
 @Component({
   selector: 'soz-borrower-dashboard',
@@ -31,6 +35,7 @@ import { VerificationBannerComponent } from '../../shared/components/verificatio
     MatButtonModule,
     MatTabsModule,
     MatIconModule,
+    MatProgressSpinnerModule,
     StatusBadgeComponent,
     VerificationBannerComponent,
   ],
@@ -55,6 +60,36 @@ import { VerificationBannerComponent } from '../../shared/components/verificatio
       </div>
 
       <soz-verification-banner [profile]="profile()" />
+
+      @if (activeApplication(); as pendingApp) {
+        @if (pendingApp.status === Status.AWAITING_BORROWER_CONFIRMATION) {
+          <mat-card class="soz-offer-card soz-reveal">
+            <mat-icon class="soz-offer-icon">notifications_active</mat-icon>
+            <div class="soz-offer-text">
+              <strong>Инвестор предложил профинансировать вашу заявку!</strong>
+              <span>
+                {{ pendingApp.approvedAmountByn }} BYN на {{ pendingApp.approvedTermMonths }} мес.,
+                {{ pendingApp.annualRatePercent }}% годовых. Посмотрите договор и решите — принять или отклонить.
+              </span>
+            </div>
+            <div class="soz-offer-actions">
+              <button mat-stroked-button (click)="openContract(pendingApp.id)" [disabled]="loadingContract()">
+                <mat-icon>description</mat-icon> Договор
+              </button>
+              <button mat-raised-button color="primary" (click)="respond(pendingApp.id, true)" [disabled]="responding() !== null">
+                @if (responding() === pendingApp.id) {
+                  <mat-spinner diameter="18"></mat-spinner>
+                } @else {
+                  <ng-container><mat-icon>check</mat-icon> Принять</ng-container>
+                }
+              </button>
+              <button mat-stroked-button color="warn" (click)="respond(pendingApp.id, false)" [disabled]="responding() !== null">
+                Отклонить
+              </button>
+            </div>
+          </mat-card>
+        }
+      }
 
       <div class="soz-stat-row">
         <div class="soz-stat-tile">
@@ -188,6 +223,39 @@ import { VerificationBannerComponent } from '../../shared/components/verificatio
       .soz-stat-tile strong {
         font-size: 18px;
       }
+      .soz-offer-card {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        background: linear-gradient(120deg, rgba(37, 99, 235, 0.1), rgba(16, 122, 87, 0.1));
+        border: 1px solid color-mix(in srgb, #2563eb 25%, transparent);
+      }
+      .soz-offer-icon {
+        color: #2563eb;
+        font-size: 32px;
+        width: 32px;
+        height: 32px;
+        flex-shrink: 0;
+      }
+      .soz-offer-text {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-width: 200px;
+        gap: 2px;
+        font-size: 13px;
+      }
+      .soz-offer-text span {
+        color: var(--mat-sys-on-surface-variant);
+      }
+      .soz-offer-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
       .soz-become-lender-card {
         display: flex;
         align-items: center;
@@ -240,15 +308,22 @@ export class BorrowerDashboardComponent implements OnInit {
   readonly activeApplication = computed(
     () =>
       this.applications().find(
-        (a) => a.status === LoanApplicationStatus.SUBMITTED || a.status === LoanApplicationStatus.PUBLISHED_FOR_FUNDING,
+        (a) =>
+          a.status === LoanApplicationStatus.SUBMITTED ||
+          a.status === LoanApplicationStatus.PUBLISHED_FOR_FUNDING ||
+          a.status === LoanApplicationStatus.AWAITING_BORROWER_CONFIRMATION,
       ) ?? null,
   );
   readonly hasActiveApplication = computed(() => this.activeApplication() !== null);
+  readonly responding = signal<string | null>(null);
+  readonly loadingContract = signal(false);
 
   constructor(
     private readonly applicationsService: LoanApplicationsService,
     private readonly loansService: LoansService,
     private readonly profilesService: ProfilesService,
+    private readonly marketplaceService: MarketplaceService,
+    private readonly snackBar: MatSnackBar,
     public readonly auth: AuthService,
     private readonly router: Router,
   ) {}
@@ -282,6 +357,43 @@ export class BorrowerDashboardComponent implements OnInit {
         this.router.navigateByUrl('/lender');
       },
       error: () => this.becomingLender.set(false),
+    });
+  }
+
+  openContract(applicationId: string): void {
+    this.loadingContract.set(true);
+    this.marketplaceService.getCommitmentForApplication(applicationId).subscribe({
+      next: (commitment) => {
+        this.loadingContract.set(false);
+        this.router.navigateByUrl(`/contract/${commitment.id}`);
+      },
+      error: (err) => {
+        this.loadingContract.set(false);
+        this.snackBar.open(extractErrorMessage(err, 'Не удалось открыть договор'), 'ОК', { duration: 4000 });
+      },
+    });
+  }
+
+  respond(applicationId: string, accept: boolean): void {
+    this.responding.set(applicationId);
+    const action = accept
+      ? this.marketplaceService.confirmFunding(applicationId)
+      : this.marketplaceService.declineFunding(applicationId);
+    action.subscribe({
+      next: () => {
+        this.responding.set(null);
+        this.snackBar.open(
+          accept ? 'Вы подтвердили заём — деньги зачислены на ваш баланс.' : 'Предложение отклонено, средства возвращены инвестору.',
+          'ОК',
+          { duration: 4000 },
+        );
+        this.applicationsService.listMine().subscribe((apps) => this.applications.set(apps));
+        this.loansService.listMine().subscribe((loans) => this.loans.set(loans));
+      },
+      error: (err) => {
+        this.responding.set(null);
+        this.snackBar.open(extractErrorMessage(err, 'Не удалось обработать ответ'), 'ОК', { duration: 4000 });
+      },
     });
   }
 }

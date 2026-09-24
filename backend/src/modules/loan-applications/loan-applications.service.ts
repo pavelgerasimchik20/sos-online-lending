@@ -117,6 +117,17 @@ export class LoanApplicationsService {
     });
   }
 
+  /** Заявки, у которых мог истечь срок сбора: опубликованные и ожидающие подтверждения заёмщика (для cron-истечения). */
+  listStaleFundingCandidates(): Promise<LoanApplication[]> {
+    return this.repo.find({
+      where: [
+        { status: LoanApplicationStatus.PUBLISHED_FOR_FUNDING },
+        { status: LoanApplicationStatus.AWAITING_BORROWER_CONFIRMATION },
+      ],
+      order: { publishedAt: 'ASC' },
+    });
+  }
+
   listAll(): Promise<LoanApplication[]> {
     return this.repo.find({ order: { createdAt: 'DESC' } });
   }

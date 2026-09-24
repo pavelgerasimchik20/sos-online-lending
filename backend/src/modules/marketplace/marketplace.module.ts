@@ -8,6 +8,7 @@ import { WalletModule } from '../wallet/wallet.module';
 import { DisbursementModule } from '../disbursement/disbursement.module';
 import { ProfilesModule } from '../profiles/profiles.module';
 import { UsersModule } from '../users/users.module';
+import { LoansModule } from '../loans/loans.module';
 import { SmsModule } from '../../integrations/sms/sms.module';
 
 @Module({
@@ -18,6 +19,7 @@ import { SmsModule } from '../../integrations/sms/sms.module';
     DisbursementModule,
     ProfilesModule,
     UsersModule,
+    LoansModule,
     SmsModule,
   ],
   providers: [MarketplaceService],

@@ -67,6 +67,27 @@
   }
 }
 
+.soz-marketplace-link {
+  background: linear-gradient(120deg, #fbbf24, #f59e0b) !important;
+  color: #3d2b00 !important;
+  font-weight: 800 !important;
+  margin-right: 6px;
+  box-shadow: 0 4px 14px -4px rgba(0, 0, 0, 0.45);
+  animation: sozMarketplacePulse 2.6s ease-in-out infinite;
+}
+
+@keyframes sozMarketplacePulse {
+  0%,
+  100% {
+    box-shadow: 0 4px 14px -4px rgba(0, 0, 0, 0.45);
+  }
+  50% {
+    box-shadow:
+      0 4px 14px -4px rgba(0, 0, 0, 0.45),
+      0 0 0 5px rgba(251, 191, 36, 0.3);
+  }
+}
+
 .soz-nav-active {
   outline: 2px solid rgba(255, 255, 255, 0.7);
   outline-offset: -2px;

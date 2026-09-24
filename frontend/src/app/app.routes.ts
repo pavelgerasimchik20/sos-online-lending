@@ -21,6 +21,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/kyc.component').then((m) => m.KycComponent),
   },
   {
+    path: 'contract/:commitmentId',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/shared/contract.component').then((m) => m.ContractComponent),
+  },
+  {
     path: 'borrower',
     canActivate: [roleGuard],
     data: { roles: [UserRole.BORROWER] },
@@ -58,6 +63,10 @@ export const routes: Routes = [
       {
         path: 'marketplace',
         loadComponent: () => import('./features/lender/marketplace.component').then((m) => m.MarketplaceComponent),
+      },
+      {
+        path: 'invest/:applicationId',
+        loadComponent: () => import('./features/lender/invest.component').then((m) => m.InvestComponent),
       },
       {
         path: 'loans/:id',

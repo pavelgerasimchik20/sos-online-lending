@@ -3,26 +3,16 @@ import { DemoSeedService } from './demo-seed.service';
 import { UsersModule } from '../users/users.module';
 import { ProfilesModule } from '../profiles/profiles.module';
 import { LoanApplicationsModule } from '../loan-applications/loan-applications.module';
-import { MarketplaceModule } from '../marketplace/marketplace.module';
-import { WalletModule } from '../wallet/wallet.module';
-import { LoansModule } from '../loans/loans.module';
-import { PaymentsModule } from '../payments/payments.module';
 
 /**
- * Засевает демонстрационные данные (маркетплейс + инвестор с реальной сделкой)
- * при первом старте на пустой базе — чтобы заказчик после клонирования репозитория
- * сразу видел работающую демонстрацию, а не пустые экраны.
+ * Засевает демонстрационные данные (10 заёмщиков с опубликованными заявками
+ * + 10 инвесторов с нулевым балансом) при первом старте на пустой базе, и
+ * предоставляет `resetAndSeed()` для полного пересева по запросу
+ * (см. DevToolsController: POST /dev/reset-demo-data).
  */
 @Module({
-  imports: [
-    UsersModule,
-    ProfilesModule,
-    LoanApplicationsModule,
-    MarketplaceModule,
-    WalletModule,
-    LoansModule,
-    PaymentsModule,
-  ],
+  imports: [UsersModule, ProfilesModule, LoanApplicationsModule],
   providers: [DemoSeedService],
+  exports: [DemoSeedService],
 })
 export class DemoSeedModule {}

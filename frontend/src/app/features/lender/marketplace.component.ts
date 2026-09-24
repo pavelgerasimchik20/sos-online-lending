@@ -1,14 +1,12 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MarketplaceService } from '../../core/services/marketplace.service';
 import { MarketplaceListing } from '../../core/models/models';
-import { extractErrorMessage } from '../../core/utils/error-message';
 
 @Component({
   selector: 'soz-marketplace',
@@ -52,23 +50,14 @@ import { extractErrorMessage } from '../../core/utils/error-message';
                 @if (listing.fundingDeadline) {
                   <div><mat-icon>event</mat-icon><span>до {{ listing.fundingDeadline | date: 'dd.MM.yyyy HH:mm' }}</span></div>
                 }
+                @if (listing.borrowerStats; as bs) {
+                  <div><mat-icon>handshake</mat-icon><span>{{ bs.dealsCount }} сделок, {{ bs.defaultedCount }} невыплат</span></div>
+                }
               </div>
 
-              <button
-                mat-raised-button
-                color="accent"
-                class="soz-fund-btn"
-                (click)="invest(listing)"
-                [disabled]="loadingId() === listing.applicationId"
-              >
-                @if (loadingId() === listing.applicationId) {
-                  <mat-spinner diameter="20"></mat-spinner>
-                } @else {
-                  <ng-container>
-                    <mat-icon>bolt</mat-icon>
-                    Профинансировать за {{ listing.remainingAmountByn }} BYN
-                  </ng-container>
-                }
+              <button mat-raised-button color="accent" class="soz-fund-btn" (click)="invest(listing)">
+                <mat-icon>bolt</mat-icon>
+                Профинансировать за {{ listing.remainingAmountByn }} BYN
               </button>
             </mat-card>
           }
@@ -206,33 +195,17 @@ import { extractErrorMessage } from '../../core/utils/error-message';
 })
 export class MarketplaceComponent implements OnInit {
   readonly listings = signal<MarketplaceListing[]>([]);
-  readonly loadingId = signal<string | null>(null);
 
   constructor(
     private readonly marketplaceService: MarketplaceService,
-    private readonly snackBar: MatSnackBar,
+    private readonly router: Router,
   ) {}
 
   ngOnInit(): void {
-    this.load();
-  }
-
-  private load(): void {
     this.marketplaceService.listListings().subscribe((listings) => this.listings.set(listings));
   }
 
   invest(listing: MarketplaceListing): void {
-    this.loadingId.set(listing.applicationId);
-    this.marketplaceService.commit(listing.applicationId, listing.remainingAmountByn).subscribe({
-      next: () => {
-        this.loadingId.set(null);
-        this.snackBar.open('Заявка профинансирована целиком! Заём выдан заёмщику.', 'ОК', { duration: 4000 });
-        this.load();
-      },
-      error: (err) => {
-        this.loadingId.set(null);
-        this.snackBar.open(extractErrorMessage(err, 'Не удалось инвестировать'), 'ОК', { duration: 4000 });
-      },
-    });
+    this.router.navigateByUrl(`/lender/invest/${listing.applicationId}`);
   }
 }

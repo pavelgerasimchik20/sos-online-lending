@@ -3,12 +3,16 @@ import { ApiTags } from '@nestjs/swagger';
 import { UsersService } from '../users/users.service';
 import { LoansService } from '../loans/loans.service';
 import { LoanApplicationsService } from '../loan-applications/loan-applications.service';
-import { LoanApplicationStatus, LoanStatus } from '../../common/enums';
+import { ProfilesService } from '../profiles/profiles.service';
+import { WalletService } from '../wallet/wallet.service';
+import { LoanApplicationStatus, LoanStatus, UserRole } from '../../common/enums';
 import { round2 } from '../../common/loan-math';
+import { maskFullName } from '../../common/name-mask';
 
 /**
  * Публичная (без авторизации) сводная статистика для маркетинговой
- * главной страницы — только неперсонализированные агрегаты.
+ * главной страницы — только неперсонализированные агрегаты и обезличенные
+ * (маскированные по ФИО) построчные данные заёмщиков/инвесторов.
  */
 @ApiTags('public')
 @Controller('public-stats')
@@ -17,6 +21,8 @@ export class PublicStatsController {
     private readonly usersService: UsersService,
     private readonly loansService: LoansService,
     private readonly applicationsService: LoanApplicationsService,
+    private readonly profilesService: ProfilesService,
+    private readonly walletService: WalletService,
   ) {}
 
   @Get()
@@ -47,5 +53,56 @@ export class PublicStatsController {
       repaidLoans: repaidOnTime,
       avgFundingWindowDays: 3,
     };
+  }
+
+  /** Обезличенная построчная статистика по всем заёмщикам — для таблицы на главной странице. */
+  @Get('borrowers')
+  async borrowerStats() {
+    const users = await this.usersService.list();
+    const borrowers = users.filter((u) => u.roles.includes(UserRole.BORROWER));
+    const rows = await Promise.all(
+      borrowers.map(async (user) => {
+        const [profile, applications, loanStats] = await Promise.all([
+          this.profilesService.findByUserId(user.id),
+          this.applicationsService.listMine(user.id),
+          this.loansService.getBorrowerStats(user.id),
+        ]);
+        return {
+          userId: user.id,
+          maskedName: profile ? maskFullName(profile.lastName, profile.firstName, profile.patronymic) : 'Аноним',
+          applicationsCount: applications.length,
+          activeLoansCount: loanStats.activeLoansCount,
+          dealsCount: loanStats.dealsCount,
+          paidOnTimeCount: loanStats.paidOnTimeCount,
+          defaultedCount: loanStats.defaultedCount,
+        };
+      }),
+    );
+    return rows.sort((a, b) => a.maskedName.localeCompare(b.maskedName, 'ru'));
+  }
+
+  /** Обезличенная построчная статистика по всем инвесторам — для таблицы на главной странице. */
+  @Get('investors')
+  async investorStats() {
+    const users = await this.usersService.list();
+    const investors = users.filter((u) => u.roles.includes(UserRole.LENDER));
+    const rows = await Promise.all(
+      investors.map(async (user) => {
+        const [profile, wallet, loanStats] = await Promise.all([
+          this.profilesService.findByUserId(user.id),
+          this.walletService.getOrCreate(user.id),
+          this.loansService.getInvestorStats(user.id),
+        ]);
+        return {
+          userId: user.id,
+          maskedName: profile ? maskFullName(profile.lastName, profile.firstName, profile.patronymic) : 'Аноним',
+          balanceByn: round2(Number(wallet.balanceByn)),
+          totalInvestedByn: round2(Number(wallet.totalInvestedByn)),
+          totalEarnedInterestByn: round2(Number(wallet.totalEarnedInterestByn)),
+          dealsCount: loanStats.dealsCount,
+        };
+      }),
+    );
+    return rows.sort((a, b) => a.maskedName.localeCompare(b.maskedName, 'ru'));
   }
 }

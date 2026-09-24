@@ -16,7 +16,7 @@
 export const LEGAL_RULES = {
   LOAN: {
     MIN_AMOUNT_BYN: 100,
-    MAX_AMOUNT_BYN: 7500,
+    MAX_AMOUNT_BYN: 10000,
     MIN_TERM_MONTHS: 1,
     MAX_TERM_MONTHS: 12,
   },

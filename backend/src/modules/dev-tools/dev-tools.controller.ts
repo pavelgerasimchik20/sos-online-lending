@@ -3,6 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CollectionsService } from '../collections/collections.service';
 import { MarketplaceService } from '../marketplace/marketplace.service';
+import { DemoSeedService } from '../demo-seed/demo-seed.service';
 
 /**
  * Служебные dev-эндпоинты для ручного запуска суточных cron-циклов без
@@ -17,6 +18,7 @@ export class DevToolsController {
     private readonly notificationsService: NotificationsService,
     private readonly collectionsService: CollectionsService,
     private readonly marketplaceService: MarketplaceService,
+    private readonly demoSeedService: DemoSeedService,
   ) {}
 
   @Post('run-daily')
@@ -25,5 +27,11 @@ export class DevToolsController {
     const collectionsResult = await this.collectionsService.runDailyCycle();
     const expiredApplications = await this.marketplaceService.expireStaleApplications();
     return { remindersSent, collectionsResult, expiredApplications };
+  }
+
+  /** Удаляет всех тестовых заёмщиков/инвесторов и пересеивает демо-данные с нуля (учётку admin не трогает). */
+  @Post('reset-demo-data')
+  resetDemoData() {
+    return this.demoSeedService.resetAndSeed();
   }
 }

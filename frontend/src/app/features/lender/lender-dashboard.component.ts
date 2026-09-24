@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -14,9 +14,12 @@ import { LoansService } from '../../core/services/loans.service';
 import { PaymentsService } from '../../core/services/payments.service';
 import { ProfilesService } from '../../core/services/profiles.service';
 import { AuthService } from '../../core/services/auth.service';
-import { LenderWallet, LoanLenderShare, Profile, UserRole } from '../../core/models/models';
+import { MarketplaceService } from '../../core/services/marketplace.service';
+import { CommitmentStatus, LenderCommitment, LenderWallet, LoanLenderShare, Profile, UserRole } from '../../core/models/models';
 import { VerificationBannerComponent } from '../../shared/components/verification-banner.component';
 import { EarningsChartComponent, EarningsPoint } from '../../shared/components/earnings-chart.component';
+import { StatusBadgeComponent } from '../../shared/components/status-badge.component';
+import { extractErrorMessage } from '../../core/utils/error-message';
 
 @Component({
   selector: 'soz-lender-dashboard',
@@ -33,6 +36,7 @@ import { EarningsChartComponent, EarningsPoint } from '../../shared/components/e
     MatTabsModule,
     VerificationBannerComponent,
     EarningsChartComponent,
+    StatusBadgeComponent,
   ],
   template: `
     <div class="soz-page">
@@ -109,6 +113,31 @@ import { EarningsChartComponent, EarningsPoint } from '../../shared/components/e
             Стать заёмщиком
           </button>
         </mat-card>
+      }
+
+      @if (pendingCommitments().length > 0) {
+        <h2>Мои предложения (ждут ответа заёмщика)</h2>
+        <div class="soz-card-grid">
+          @for (c of pendingCommitments(); track c.id) {
+            <mat-card class="soz-money-card">
+              <mat-card-header>
+                <mat-card-title>{{ c.amountByn }} BYN</mat-card-title>
+                <mat-card-subtitle>Предложено {{ c.createdAt | date: 'dd.MM.yyyy HH:mm' }}</mat-card-subtitle>
+              </mat-card-header>
+              <mat-card-content>
+                <p><soz-status-badge [status]="c.status" /></p>
+                <div class="soz-pending-actions">
+                  <a mat-stroked-button [routerLink]="['/contract', c.id]">
+                    <mat-icon>description</mat-icon> Договор
+                  </a>
+                  <button mat-stroked-button color="warn" (click)="cancelCommitment(c.id)" [disabled]="cancelling() === c.id">
+                    Отозвать
+                  </button>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          }
+        </div>
       }
 
       <h2>Мой портфель</h2>
@@ -208,6 +237,11 @@ import { EarningsChartComponent, EarningsPoint } from '../../shared/components/e
       .soz-clickable-card {
         cursor: pointer;
       }
+      .soz-pending-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+      }
     `,
   ],
 })
@@ -217,9 +251,15 @@ export class LenderDashboardComponent implements OnInit {
 
   readonly wallet = signal<LenderWallet | null>(null);
   readonly portfolio = signal<LoanLenderShare[]>([]);
+  readonly commitments = signal<LenderCommitment[]>([]);
   readonly profile = signal<Profile | null>(null);
   readonly earningsSeries = signal<EarningsPoint[]>([]);
   readonly becoming = signal(false);
+  readonly cancelling = signal<string | null>(null);
+
+  readonly pendingCommitments = computed(() =>
+    this.commitments().filter((c) => c.status === CommitmentStatus.PENDING_BORROWER_CONFIRMATION),
+  );
 
   readonly topUpForm = this.fb.nonNullable.group({
     amountByn: [500, [Validators.required, Validators.min(1)]],
@@ -230,6 +270,7 @@ export class LenderDashboardComponent implements OnInit {
     private readonly loansService: LoansService,
     private readonly paymentsService: PaymentsService,
     private readonly profilesService: ProfilesService,
+    private readonly marketplaceService: MarketplaceService,
     public readonly auth: AuthService,
     private readonly router: Router,
     private readonly snackBar: MatSnackBar,
@@ -239,6 +280,7 @@ export class LenderDashboardComponent implements OnInit {
     this.loadWallet();
     this.loansService.myPortfolio().subscribe((p) => this.portfolio.set(p));
     this.profilesService.getMine().subscribe((p) => this.profile.set(p));
+    this.marketplaceService.listMyCommitments().subscribe((c) => this.commitments.set(c));
     this.paymentsService.listPayoutsMine().subscribe((payouts) => {
       const byDay = new Map<string, number>();
       for (const payout of payouts) {
@@ -277,6 +319,22 @@ export class LenderDashboardComponent implements OnInit {
         this.router.navigateByUrl('/borrower');
       },
       error: () => this.becoming.set(false),
+    });
+  }
+
+  cancelCommitment(commitmentId: string): void {
+    this.cancelling.set(commitmentId);
+    this.marketplaceService.cancelCommitment(commitmentId).subscribe({
+      next: () => {
+        this.cancelling.set(null);
+        this.snackBar.open('Предложение отозвано, средства возвращены на кошелёк', 'ОК', { duration: 3000 });
+        this.loadWallet();
+        this.marketplaceService.listMyCommitments().subscribe((c) => this.commitments.set(c));
+      },
+      error: (err) => {
+        this.cancelling.set(null);
+        this.snackBar.open(extractErrorMessage(err, 'Не удалось отозвать предложение'), 'ОК', { duration: 4000 });
+      },
     });
   }
 }

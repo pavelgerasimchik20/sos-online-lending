@@ -21,6 +21,17 @@ export interface PaymentAllocation {
   perLender: Map<string, { principal: number; interest: number; penalty: number }>;
 }
 
+export interface BorrowerLoanStats {
+  dealsCount: number;
+  paidOnTimeCount: number;
+  defaultedCount: number;
+  activeLoansCount: number;
+}
+
+export interface InvestorLoanStats {
+  dealsCount: number;
+}
+
 @Injectable()
 export class LoansService {
   constructor(
@@ -89,6 +100,23 @@ export class LoansService {
 
   listForBorrower(borrowerId: string): Promise<Loan[]> {
     return this.loanRepo.find({ where: { borrowerId }, order: { issuedAt: 'DESC' } });
+  }
+
+  /** Публичная статистика заёмщика для карточки инвестора и таблицы на главной (все значения — по факту, у новых заёмщиков — нули). */
+  async getBorrowerStats(borrowerId: string): Promise<BorrowerLoanStats> {
+    const loans = await this.listForBorrower(borrowerId);
+    const paidOnTimeCount = loans.filter(
+      (l) => (l.status === LoanStatus.CLOSED || l.status === LoanStatus.EARLY_REPAID) && Number(l.accruedPenaltyByn) === 0,
+    ).length;
+    const defaultedCount = loans.filter((l) => l.status === LoanStatus.DEFAULT).length;
+    const activeLoansCount = loans.filter((l) => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.OVERDUE).length;
+    return { dealsCount: loans.length, paidOnTimeCount, defaultedCount, activeLoansCount };
+  }
+
+  /** Публичная статистика инвестора (кол-во сделок) — баланс/вложено/заработано берутся из LenderWallet. */
+  async getInvestorStats(lenderId: string): Promise<InvestorLoanStats> {
+    const shares = await this.listSharesForLender(lenderId);
+    return { dealsCount: shares.length };
   }
 
   listAll(): Promise<Loan[]> {

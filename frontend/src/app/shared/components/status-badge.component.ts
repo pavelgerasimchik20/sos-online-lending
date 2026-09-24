@@ -18,6 +18,8 @@ const WARN_STATUSES = new Set([
   'PARTIALLY_PAID',
   'SOFT_REMINDERS',
   'NOT_SUBMITTED',
+  'AWAITING_BORROWER_CONFIRMATION',
+  'PENDING_BORROWER_CONFIRMATION',
 ]);
 const DANGER_STATUSES = new Set([
   'REJECTED',
@@ -30,6 +32,7 @@ const DANGER_STATUSES = new Set([
   'CANCELLED',
   'REFUNDED',
   'BLOCKED',
+  'DECLINED_BY_BORROWER',
 ]);
 
 const LABELS: Record<string, string> = {
@@ -42,6 +45,9 @@ const LABELS: Record<string, string> = {
   SUBMITTED: 'Отправлена',
   SCORED: 'Оценена',
   PUBLISHED_FOR_FUNDING: 'Сбор средств',
+  AWAITING_BORROWER_CONFIRMATION: 'Ждём вашего решения',
+  PENDING_BORROWER_CONFIRMATION: 'Ждём заёмщика',
+  DECLINED_BY_BORROWER: 'Отклонено заёмщиком',
   FUNDED: 'Профинансирована',
   EXPIRED: 'Истёк срок',
   CANCELLED: 'Отменена',

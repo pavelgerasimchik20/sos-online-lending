@@ -29,6 +29,7 @@ export enum LoanApplicationStatus {
   SCORED = 'SCORED',
   REJECTED = 'REJECTED',
   PUBLISHED_FOR_FUNDING = 'PUBLISHED_FOR_FUNDING',
+  AWAITING_BORROWER_CONFIRMATION = 'AWAITING_BORROWER_CONFIRMATION',
   FUNDED = 'FUNDED',
   EXPIRED = 'EXPIRED',
   CANCELLED = 'CANCELLED',
@@ -56,7 +57,9 @@ export enum PaymentStatus {
 }
 
 export enum CommitmentStatus {
+  PENDING_BORROWER_CONFIRMATION = 'PENDING_BORROWER_CONFIRMATION',
   ACTIVE = 'ACTIVE',
+  DECLINED_BY_BORROWER = 'DECLINED_BY_BORROWER',
   CANCELLED = 'CANCELLED',
   REFUNDED = 'REFUNDED',
 }
@@ -168,6 +171,12 @@ export interface LoanApplication {
   createdAt: string;
 }
 
+export interface BorrowerStats {
+  dealsCount: number;
+  paidOnTimeCount: number;
+  defaultedCount: number;
+}
+
 export interface MarketplaceListing {
   applicationId: string;
   grade?: string;
@@ -181,6 +190,41 @@ export interface MarketplaceListing {
   fundingDeadline?: string;
   publishedAt?: string;
   borrowerMaskedName?: string;
+  borrowerStats?: BorrowerStats;
+}
+
+export interface BorrowerStatsRow {
+  userId: string;
+  maskedName: string;
+  applicationsCount: number;
+  activeLoansCount: number;
+  dealsCount: number;
+  paidOnTimeCount: number;
+  defaultedCount: number;
+}
+
+export interface InvestorStatsRow {
+  userId: string;
+  maskedName: string;
+  balanceByn: number;
+  totalInvestedByn: number;
+  totalEarnedInterestByn: number;
+  dealsCount: number;
+}
+
+export interface ContractData {
+  commitmentId: string;
+  commitmentStatus: CommitmentStatus;
+  applicationId: string;
+  loanId?: string;
+  amountByn: number;
+  termMonths?: number;
+  annualRatePercent?: number;
+  purpose: string;
+  createdAt: string;
+  borrower: Profile;
+  lender: Profile;
+  schedule: ScheduleRow[];
 }
 
 export interface LenderCommitment {

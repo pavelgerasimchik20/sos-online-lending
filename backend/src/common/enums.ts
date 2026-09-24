@@ -36,6 +36,8 @@ export enum LoanApplicationStatus {
   SCORED = 'SCORED',
   REJECTED = 'REJECTED',
   PUBLISHED_FOR_FUNDING = 'PUBLISHED_FOR_FUNDING',
+  /** Инвестор сделал предложение — ждём подтверждения заёмщика (деньги ещё не переданы). */
+  AWAITING_BORROWER_CONFIRMATION = 'AWAITING_BORROWER_CONFIRMATION',
   FUNDED = 'FUNDED',
   EXPIRED = 'EXPIRED',
   CANCELLED = 'CANCELLED',
@@ -56,7 +58,11 @@ export enum ScoringGrade {
 }
 
 export enum CommitmentStatus {
+  /** Инвестор предложил профинансировать заявку, заёмщик ещё не подтвердил. */
+  PENDING_BORROWER_CONFIRMATION = 'PENDING_BORROWER_CONFIRMATION',
   ACTIVE = 'ACTIVE',
+  /** Заёмщик отклонил предложение (не то же самое, что CANCELLED инвестором). */
+  DECLINED_BY_BORROWER = 'DECLINED_BY_BORROWER',
   CANCELLED = 'CANCELLED',
   REFUNDED = 'REFUNDED',
 }

@@ -2,7 +2,17 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { AdminDashboard, AdminUser, DefaultCase, Profile, PublicStats, SmsMessage, UserRole } from '../models/models';
+import {
+  AdminDashboard,
+  AdminUser,
+  BorrowerStatsRow,
+  DefaultCase,
+  InvestorStatsRow,
+  Profile,
+  PublicStats,
+  SmsMessage,
+  UserRole,
+} from '../models/models';
 
 export interface AdminCreateUserPayload {
   login: string;
@@ -22,6 +32,14 @@ export class AdminService {
 
   publicStats(): Observable<PublicStats> {
     return this.http.get<PublicStats>(`${this.base}/public-stats`);
+  }
+
+  publicBorrowerStats(): Observable<BorrowerStatsRow[]> {
+    return this.http.get<BorrowerStatsRow[]>(`${this.base}/public-stats/borrowers`);
+  }
+
+  publicInvestorStats(): Observable<InvestorStatsRow[]> {
+    return this.http.get<InvestorStatsRow[]>(`${this.base}/public-stats/investors`);
   }
 
   smsLog(): Observable<SmsMessage[]> {

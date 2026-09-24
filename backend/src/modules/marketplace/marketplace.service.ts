@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { LenderCommitment } from './lender-commitment.entity';
@@ -7,11 +7,14 @@ import { WalletService } from '../wallet/wallet.service';
 import { WalletTransactionType } from '../wallet/wallet-transaction.entity';
 import { DisbursementService } from '../disbursement/disbursement.service';
 import { ProfilesService } from '../profiles/profiles.service';
+import { LoansService } from '../loans/loans.service';
 import { CommitmentStatus, LoanApplicationStatus, SmsTemplate } from '../../common/enums';
-import { round2 } from '../../common/loan-math';
+import { buildAnnuitySchedule, round2 } from '../../common/loan-math';
+import { maskFullName } from '../../common/name-mask';
 import { SMS_GATEWAY_PORT, SmsGatewayPort } from '../../integrations/interfaces/sms-gateway.port';
 import { UsersService } from '../users/users.service';
 import { LoanApplication } from '../loan-applications/loan-application.entity';
+import { Loan } from '../loans/loan.entity';
 
 export interface MarketplaceListing {
   applicationId: string;
@@ -26,23 +29,7 @@ export interface MarketplaceListing {
   fundingDeadline?: Date;
   publishedAt?: Date;
   borrowerMaskedName?: string;
-}
-
-/** Маскирует фамилию для обезличенного листинга (Иванова → И.....а), имя и отчество оставляет как в примере ТЗ. */
-function maskSurname(surname: string): string {
-  const trimmed = surname.trim();
-  if (trimmed.length <= 2) {
-    return trimmed;
-  }
-  return `${trimmed[0]}${'.'.repeat(trimmed.length - 2)}${trimmed[trimmed.length - 1]}`;
-}
-
-function maskBorrowerName(lastName: string, firstName: string, patronymic?: string | null): string {
-  const parts = [maskSurname(lastName), firstName.trim()];
-  if (patronymic && patronymic.trim()) {
-    parts.push(`${patronymic.trim()[0]}.`);
-  }
-  return parts.join(' ');
+  borrowerStats?: { dealsCount: number; paidOnTimeCount: number; defaultedCount: number };
 }
 
 @Injectable()
@@ -54,6 +41,7 @@ export class MarketplaceService {
     private readonly walletService: WalletService,
     private readonly disbursementService: DisbursementService,
     private readonly profilesService: ProfilesService,
+    private readonly loansService: LoansService,
     private readonly usersService: UsersService,
     @Inject(SMS_GATEWAY_PORT) private readonly smsGateway: SmsGatewayPort,
   ) {}
@@ -68,7 +56,10 @@ export class MarketplaceService {
   private async toListing(application: LoanApplication): Promise<MarketplaceListing> {
     const approved = Number(application.approvedAmountByn ?? 0);
     const funded = Number(application.fundedAmountByn ?? 0);
-    const borrowerProfile = await this.profilesService.findByUserId(application.borrowerId);
+    const [borrowerProfile, borrowerStats] = await Promise.all([
+      this.profilesService.findByUserId(application.borrowerId),
+      this.loansService.getBorrowerStats(application.borrowerId),
+    ]);
     return {
       applicationId: application.id,
       grade: application.grade,
@@ -82,12 +73,23 @@ export class MarketplaceService {
       fundingDeadline: application.fundingDeadline,
       publishedAt: application.publishedAt,
       borrowerMaskedName: borrowerProfile
-        ? maskBorrowerName(borrowerProfile.lastName, borrowerProfile.firstName, borrowerProfile.patronymic)
+        ? maskFullName(borrowerProfile.lastName, borrowerProfile.firstName, borrowerProfile.patronymic)
         : undefined,
+      borrowerStats: {
+        dealsCount: borrowerStats.dealsCount,
+        paidOnTimeCount: borrowerStats.paidOnTimeCount,
+        defaultedCount: borrowerStats.defaultedCount,
+      },
     };
   }
 
-  async commit(lenderId: string, applicationId: string, amountByn: number): Promise<LenderCommitment> {
+  /**
+   * Инвестор предлагает профинансировать заявку целиком. Деньги резервируются
+   * на его кошельке сразу, но заём НЕ выдаётся — заявка переходит в статус
+   * "ожидает подтверждения заёмщика", и только после его согласия
+   * (см. {@link confirmFunding}) деньги фактически передаются.
+   */
+  async propose(lenderId: string, applicationId: string, amountByn: number): Promise<LenderCommitment> {
     await this.profilesService.requireFullyVerified(lenderId);
 
     const application = await this.applicationsService.findByIdOrThrow(applicationId);
@@ -102,14 +104,11 @@ export class MarketplaceService {
     }
 
     const approved = Number(application.approvedAmountByn ?? 0);
-    const remaining = round2(approved - Number(application.fundedAmountByn ?? 0));
 
     // Заём финансируется строго одним инвестором целиком (не пулом из нескольких
     // инвесторов): заявка — от одного заёмщика и для одного инвестора.
-    if (Math.abs(amountByn - remaining) > 0.01) {
-      throw new BadRequestException(
-        `Заявку можно профинансировать только полностью, одним инвестором. Требуемая сумма: ${remaining} BYN`,
-      );
+    if (Math.abs(amountByn - approved) > 0.01) {
+      throw new BadRequestException(`Заявку можно профинансировать только полностью, одним инвестором. Требуемая сумма: ${approved} BYN`);
     }
 
     await this.walletService.debit(
@@ -117,52 +116,110 @@ export class MarketplaceService {
       amountByn,
       WalletTransactionType.COMMITMENT_HOLD,
       applicationId,
-      'Резервирование средств под финансирование заявки',
+      'Резервирование средств под предложение по заявке',
     );
 
     let commitment = this.repo.create({
       applicationId,
       lenderId,
       amountByn,
-      status: CommitmentStatus.ACTIVE,
+      status: CommitmentStatus.PENDING_BORROWER_CONFIRMATION,
     });
     commitment = await this.repo.save(commitment);
 
-    application.fundedAmountByn = round2(Number(application.fundedAmountByn ?? 0) + amountByn);
+    application.status = LoanApplicationStatus.AWAITING_BORROWER_CONFIRMATION;
+    application.fundedAmountByn = amountByn;
     await this.applicationsService.save(application);
 
-    if (application.fundedAmountByn >= approved - 0.01) {
-      await this.completeFunding(application);
-    }
+    const borrower = await this.usersService.findByIdOrThrow(application.borrowerId);
+    await this.smsGateway.send(
+      borrower.phone,
+      SmsTemplate.APPLICATION_APPROVED,
+      `SOS: Инвестор предложил профинансировать вашу заявку №${application.id.slice(0, 8)} на ${amountByn} BYN. Подтвердите в личном кабинете.`,
+      { applicationId: application.id, commitmentId: commitment.id },
+    );
 
     return commitment;
   }
 
-  private async completeFunding(application: LoanApplication): Promise<void> {
-    const commitments = await this.repo.find({
-      where: { applicationId: application.id, status: CommitmentStatus.ACTIVE },
+  /** Заёмщик подтверждает предложение — деньги передаются, заём выдаётся. */
+  async confirmFunding(borrowerId: string, applicationId: string): Promise<Loan> {
+    const application = await this.applicationsService.findByIdOrThrow(applicationId);
+    if (application.borrowerId !== borrowerId) {
+      throw new ForbiddenException('Заявка принадлежит другому пользователю');
+    }
+    if (application.status !== LoanApplicationStatus.AWAITING_BORROWER_CONFIRMATION) {
+      throw new BadRequestException('По заявке нет предложения, ожидающего подтверждения');
+    }
+
+    const commitment = await this.repo.findOne({
+      where: { applicationId, status: CommitmentStatus.PENDING_BORROWER_CONFIRMATION },
     });
-    const { loan } = await this.disbursementService.issueAndDisburse(
-      application,
-      commitments.map((c) => ({ lenderId: c.lenderId, amountByn: Number(c.amountByn) })),
-    );
+    if (!commitment) {
+      throw new NotFoundException('Предложение по заявке не найдено');
+    }
+
+    commitment.status = CommitmentStatus.ACTIVE;
+    await this.repo.save(commitment);
+
+    const { loan } = await this.disbursementService.issueAndDisburse(application, [
+      { lenderId: commitment.lenderId, amountByn: Number(commitment.amountByn) },
+    ]);
 
     application.status = LoanApplicationStatus.FUNDED;
     application.fundedAt = new Date();
     application.loanId = loan.id;
     await this.applicationsService.save(application);
 
-    for (const commitment of commitments) {
+    const lender = await this.usersService.findByIdOrThrow(commitment.lenderId);
+    await this.smsGateway.send(
+      lender.phone,
+      SmsTemplate.LOAN_ISSUED,
+      `SOS: Заёмщик подтвердил заявку №${application.id.slice(0, 8)}. Заём на ${commitment.amountByn} BYN выдан, договор доступен в личном кабинете.`,
+      { applicationId: application.id, loanId: loan.id },
+    );
+
+    return loan;
+  }
+
+  /** Заёмщик отклоняет предложение — средства возвращаются инвестору, заявка снова открыта. */
+  async declineFunding(borrowerId: string, applicationId: string): Promise<LoanApplication> {
+    const application = await this.applicationsService.findByIdOrThrow(applicationId);
+    if (application.borrowerId !== borrowerId) {
+      throw new ForbiddenException('Заявка принадлежит другому пользователю');
+    }
+    if (application.status !== LoanApplicationStatus.AWAITING_BORROWER_CONFIRMATION) {
+      throw new BadRequestException('По заявке нет предложения, ожидающего подтверждения');
+    }
+
+    const commitment = await this.repo.findOne({
+      where: { applicationId, status: CommitmentStatus.PENDING_BORROWER_CONFIRMATION },
+    });
+    if (commitment) {
+      commitment.status = CommitmentStatus.DECLINED_BY_BORROWER;
+      await this.repo.save(commitment);
+      await this.walletService.credit(
+        commitment.lenderId,
+        Number(commitment.amountByn),
+        WalletTransactionType.COMMITMENT_REFUND,
+        applicationId,
+        'Возврат средств: заёмщик отклонил предложение',
+      );
       const lender = await this.usersService.findByIdOrThrow(commitment.lenderId);
       await this.smsGateway.send(
         lender.phone,
-        SmsTemplate.LOAN_ISSUED,
-        `SOS: Заявка №${application.id.slice(0, 8)} профинансирована вами целиком (${commitment.amountByn} BYN). Заём выдан заёмщику.`,
-        { applicationId: application.id, loanId: loan.id },
+        SmsTemplate.APPLICATION_REJECTED,
+        `SOS: Заёмщик отклонил ваше предложение по заявке №${application.id.slice(0, 8)}. Средства возвращены на кошелёк.`,
+        { applicationId: application.id },
       );
     }
+
+    application.status = LoanApplicationStatus.PUBLISHED_FOR_FUNDING;
+    application.fundedAmountByn = 0;
+    return this.applicationsService.save(application);
   }
 
+  /** Инвестор сам отзывает предложение, пока заёмщик не ответил. */
   async cancelCommitment(lenderId: string, commitmentId: string): Promise<LenderCommitment> {
     const commitment = await this.repo.findOne({ where: { id: commitmentId } });
     if (!commitment) {
@@ -171,18 +228,16 @@ export class MarketplaceService {
     if (commitment.lenderId !== lenderId) {
       throw new BadRequestException('Обязательство принадлежит другому пользователю');
     }
-    if (commitment.status !== CommitmentStatus.ACTIVE) {
-      throw new BadRequestException('Обязательство уже закрыто');
-    }
-    const application = await this.applicationsService.findByIdOrThrow(commitment.applicationId);
-    if (application.status !== LoanApplicationStatus.PUBLISHED_FOR_FUNDING) {
-      throw new BadRequestException('Заявка уже профинансирована — отменить участие нельзя');
+    if (commitment.status !== CommitmentStatus.PENDING_BORROWER_CONFIRMATION) {
+      throw new BadRequestException('Отменить можно только предложение, ожидающее ответа заёмщика');
     }
 
     commitment.status = CommitmentStatus.CANCELLED;
     await this.repo.save(commitment);
 
-    application.fundedAmountByn = round2(Number(application.fundedAmountByn) - Number(commitment.amountByn));
+    const application = await this.applicationsService.findByIdOrThrow(commitment.applicationId);
+    application.status = LoanApplicationStatus.PUBLISHED_FOR_FUNDING;
+    application.fundedAmountByn = 0;
     await this.applicationsService.save(application);
 
     await this.walletService.credit(
@@ -190,26 +245,29 @@ export class MarketplaceService {
       Number(commitment.amountByn),
       WalletTransactionType.COMMITMENT_REFUND,
       commitment.applicationId,
-      'Возврат средств: отмена участия в финансировании',
+      'Возврат средств: отмена предложения инвестором',
     );
 
     return commitment;
   }
 
-  /** Автоистечение заявок, не собравших полную сумму в срок (вызывается из cron). */
+  /** Автоистечение заявок, по которым не собрали/не подтвердили финансирование в срок (вызывается из cron). */
   async expireStaleApplications(): Promise<number> {
-    const published = await this.applicationsService.listPublished();
+    const applications = await this.applicationsService.listStaleFundingCandidates();
     const now = new Date();
     let expiredCount = 0;
 
-    for (const application of published) {
+    for (const application of applications) {
       if (!application.fundingDeadline || application.fundingDeadline >= now) {
         continue;
       }
-      const commitments = await this.repo.find({
-        where: { applicationId: application.id, status: CommitmentStatus.ACTIVE },
+      const pending = await this.repo.find({
+        where: [
+          { applicationId: application.id, status: CommitmentStatus.ACTIVE },
+          { applicationId: application.id, status: CommitmentStatus.PENDING_BORROWER_CONFIRMATION },
+        ],
       });
-      for (const commitment of commitments) {
+      for (const commitment of pending) {
         commitment.status = CommitmentStatus.REFUNDED;
         await this.repo.save(commitment);
         await this.walletService.credit(
@@ -233,5 +291,71 @@ export class MarketplaceService {
 
   listForApplication(applicationId: string): Promise<LenderCommitment[]> {
     return this.repo.find({ where: { applicationId } });
+  }
+
+  /** Заёмщик получает свой текущий (ожидающий или активный) commitment по заявке — нужен, чтобы открыть договор. */
+  async getCurrentCommitmentForBorrower(borrowerId: string, applicationId: string): Promise<LenderCommitment> {
+    const application = await this.applicationsService.findByIdOrThrow(applicationId);
+    if (application.borrowerId !== borrowerId) {
+      throw new ForbiddenException('Заявка принадлежит другому пользователю');
+    }
+    const commitment = await this.repo.findOne({
+      where: [
+        { applicationId, status: CommitmentStatus.PENDING_BORROWER_CONFIRMATION },
+        { applicationId, status: CommitmentStatus.ACTIVE },
+      ],
+      order: { createdAt: 'DESC' },
+    });
+    if (!commitment) {
+      throw new NotFoundException('По заявке нет действующего предложения');
+    }
+    return commitment;
+  }
+
+  /**
+   * Данные для договора займа: полные (немаскированные) персональные данные
+   * обеих сторон + условия. Доступно только заёмщику и инвестору этого
+   * конкретного предложения (или админу).
+   */
+  async getContractData(commitmentId: string, requesterId: string, isAdmin: boolean) {
+    const commitment = await this.repo.findOne({ where: { id: commitmentId } });
+    if (!commitment) {
+      throw new NotFoundException('Предложение не найдено');
+    }
+    const application = await this.applicationsService.findByIdOrThrow(commitment.applicationId);
+    if (!isAdmin && requesterId !== commitment.lenderId && requesterId !== application.borrowerId) {
+      throw new ForbiddenException('Договор доступен только сторонам сделки');
+    }
+
+    const [borrowerProfile, lenderProfile] = await Promise.all([
+      this.profilesService.findByUserId(application.borrowerId),
+      this.profilesService.findByUserId(commitment.lenderId),
+    ]);
+
+    const amountByn = Number(commitment.amountByn);
+    const termMonths = application.approvedTermMonths ?? 0;
+    const annualRatePercent = Number(application.annualRatePercent ?? 0);
+    const schedule =
+      termMonths > 0
+        ? buildAnnuitySchedule(amountByn, annualRatePercent, termMonths, commitment.createdAt).map((row) => ({
+            ...row,
+            dueDate: row.dueDate.toISOString().slice(0, 10),
+          }))
+        : [];
+
+    return {
+      commitmentId: commitment.id,
+      commitmentStatus: commitment.status,
+      applicationId: application.id,
+      loanId: application.loanId,
+      amountByn,
+      termMonths: application.approvedTermMonths,
+      annualRatePercent: application.annualRatePercent,
+      purpose: application.purpose,
+      createdAt: commitment.createdAt,
+      borrower: borrowerProfile,
+      lender: lenderProfile,
+      schedule,
+    };
   }
 }
